@@ -31,18 +31,22 @@
         .icon { font-size: 30px; display: block; margin-bottom: 5px; }
         .menu-item b { font-size: 12px; color: var(--primary); text-transform: uppercase; }
 
-        /* TABOA DE EDICIÓN DE ARQUIVOS/DATOS */
+        /* CALIBRACIÓN E CÁMARA */
+        .visor-cont { flex: 1; position: relative; background: #000; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Liña de calibración */
+        #cal-line { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 200px; height: 4px; background: #007bff; border: 2px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index: 5; display: none;
+        }
+
+        .cam-ui { position: absolute; bottom: 20px; left: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; z-index: 10; }
+        
         .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .btn-del { background: #d9534f; color: white; border: none; padding: 5px; border-radius: 4px; }
-
-        /* MAPA FULL SCREEN */
         #map { flex: 1; width: 100%; }
-
-        /* CÁMARA */
-        .visor-cont { flex: 1; position: relative; background: #000; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .cam-ui { position: absolute; bottom: 20px; left: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; }
     </style>
 </head>
 <body>
@@ -56,12 +60,24 @@
             </div>
 
             <div class="menu-grid">
-                <div class="menu-item" onclick="alert('Calibración en proceso...')"><span class="icon">⚙️</span><b>Calibración</b></div>
+                <div class="menu-item" onclick="abrirCalibracion()"><span class="icon">⚙️</span><b>Calibración</b></div>
                 <div class="menu-item" onclick="abrirCamara()"><span class="icon">📸</span><b>Medir</b></div>
                 <div class="menu-item" onclick="irA('map-screen')"><span class="icon">📍</span><b>Mapa</b></div>
                 <div class="menu-item" onclick="irA('prezos-screen')"><span class="icon">💰</span><b>Prezos</b></div>
                 <div class="menu-item" onclick="irA('datos-screen')"><span class="icon">📂</span><b>Arquivos</b></div>
                 <div class="menu-item" onclick="exportarExcel()"><span class="icon">📊</span><b>Excel</b></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="cal-screen" class="screen">
+        <div class="visor-cont">
+            <video id="video-cal" autoplay playsinline></video>
+            <div id="cal-line"></div>
+            <div class="cam-ui">
+                <p style="margin:0 0 10px 0; font-size:12px;">Axusta a liña aos <b>30cm</b> da regra</p>
+                <input type="range" id="range-cal" min="50" max="400" value="200" style="width:100%;" oninput="axustarLiña(this.value)">
+                <button onclick="gardarCalibracion()" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; margin-top:10px;">GARDAR CALIBRACIÓN</button>
             </div>
         </div>
     </section>
@@ -74,7 +90,7 @@
                 <button onclick="setModo('carg')" id="btn-carg" style="flex:1; padding:10px;">CARGADEIRO</button>
             </div>
             <table id="tabla-prezos" style="width:100%;"></table>
-            <button onclick="irA('home')" style="width:100%; padding:15px; margin-top:20px; background:var(--primary); color:white; border:none; border-radius:10px;">GARDAR E VOLVER</button>
+            <button onclick="irA('home')" style="width:100%; padding:15px; margin-top:20px; background:var(--primary); color:white; border:none; border-radius:10px;">VOLVER</button>
         </div>
     </section>
 
@@ -91,12 +107,12 @@
 
     <section id="map-screen" class="screen">
         <div id="map"></div>
-        <button onclick="irA('home')" style="position:absolute; bottom:20px; left:20px; right:20px; z-index:1000; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold;">SAÍR DO MAPA</button>
+        <button onclick="irA('home')" style="position:absolute; bottom:20px; left:20px; right:20px; z-index:1000; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold;">VOLVER</button>
     </section>
 
     <section id="cam-screen" class="screen">
         <div class="visor-cont">
-            <video id="video" autoplay playsinline></video>
+            <video id="video-medir" autoplay playsinline></video>
             <div class="cam-ui">
                 <select id="sel-especie" style="width:100%; padding:10px; margin-bottom:10px;"></select>
                 <div id="live-dap" style="font-size:24px; font-weight:bold; color:var(--primary);">--- cm</div>
@@ -119,6 +135,7 @@
 
         let inventario = JSON.parse(localStorage.getItem('medidor_data')) || [];
         let prezos = JSON.parse(localStorage.getItem('medidor_prezos')) || especiesBase;
+        let pxPorCm = parseFloat(localStorage.getItem('calibracion_px')) || 10; 
         let modoActual = 'pie';
         let map, markerGroup, stream;
 
@@ -130,6 +147,51 @@
             if(id === 'prezos-screen') renderPrezos();
         }
 
+        // --- CALIBRACIÓN ---
+        async function abrirCalibracion() {
+            irA('cal-screen');
+            document.getElementById('cal-line').style.display = 'block';
+            stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
+            document.getElementById('video-cal').srcObject = stream;
+        }
+
+        function axustarLiña(val) {
+            document.getElementById('cal-line').style.width = val + 'px';
+        }
+
+        function gardarCalibracion() {
+            const larguraPx = parseInt(document.getElementById('range-cal').value);
+            pxPorCm = larguraPx / 30; // 30cm é a regra
+            localStorage.setItem('calibracion_px', pxPorCm);
+            alert("Calibrado: " + pxPorCm.toFixed(2) + " px/cm");
+            pecharCamara();
+        }
+
+        // --- MEDIR ---
+        async function abrirCamara() {
+            irA('cam-screen');
+            const sel = document.getElementById('sel-especie');
+            sel.innerHTML = prezos.map((e,i) => `<option value="${i}">${e.nome}</option>`).join('');
+            stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
+            document.getElementById('video-medir').srcObject = stream;
+            
+            // Simulación de detección basada na calibración
+            window.camInt = setInterval(() => {
+                // Aquí simúlase que o sensor detecta un obxecto que ocupa 250px na pantalla
+                const simPx = 200 + (Math.random() * 50); 
+                window.curDap = (simPx / pxPorCm).toFixed(1);
+                document.getElementById('live-dap').innerText = window.curDap + " cm";
+            }, 1000);
+        }
+
+        function pecharCamara() {
+            if(stream) stream.getTracks().forEach(t => t.stop());
+            clearInterval(window.camInt);
+            document.getElementById('cal-line').style.display = 'none';
+            irA('home');
+        }
+
+        // --- RESTO DE FUNCIÓNS (IGUAIS) ---
         function renderPrezos() {
             const body = document.getElementById('tabla-prezos');
             body.innerHTML = '';
@@ -145,37 +207,21 @@
             actualizarTotais();
         }
 
-        function setModo(m) {
-            modoActual = m;
-            renderPrezos();
-        }
+        function setModo(m) { modoActual = m; renderPrezos(); }
 
         function renderDatos() {
             const body = document.getElementById('lista-datos');
             body.innerHTML = '';
             inventario.forEach((a, i) => {
-                body.innerHTML += `<tr>
-                    <td>${i+1}</td>
-                    <td>${prezos[a.ei].nome}</td>
-                    <td><input type="number" value="${a.d}" style="width:50px;" onchange="editarArbore(${i}, this.value)"></td>
-                    <td><button class="btn-del" onclick="borrarArbore(${i})">🗑️</button></td>
-                </tr>`;
+                body.innerHTML += `<tr><td>${i+1}</td><td>${prezos[a.ei].nome}</td><td>${a.d}cm</td><td><button onclick="borrarArbore(${i})">🗑️</button></td></tr>`;
             });
         }
 
-        function editarArbore(i, novoDap) {
-            inventario[i].d = parseFloat(novoDap);
-            inventario[i].v = parseFloat((0.00008 * Math.pow(novoDap, 2.4)).toFixed(3));
-            localStorage.setItem('medidor_data', JSON.stringify(inventario));
-            actualizarTotais();
-        }
-
         function borrarArbore(i) {
-            if(confirm("Eliminar esta árbore?")) {
+            if(confirm("Eliminar?")) {
                 inventario.splice(i, 1);
                 localStorage.setItem('medidor_data', JSON.stringify(inventario));
-                renderDatos();
-                actualizarTotais();
+                renderDatos(); actualizarTotais();
             }
         }
 
@@ -191,29 +237,6 @@
             document.getElementById('display-vol').innerText = vol.toFixed(3);
         }
 
-        function initMap() {
-            if(!map) {
-                map = L.map('map').setView([43.2, -8.3], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                markerGroup = L.layerGroup().addTo(map);
-            }
-            markerGroup.clearLayers();
-            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup));
-            map.invalidateSize();
-        }
-
-        async function abrirCamara() {
-            irA('cam-screen');
-            const sel = document.getElementById('sel-especie');
-            sel.innerHTML = prezos.map((e,i) => `<option value="${i}">${e.nome}</option>`).join('');
-            stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
-            document.getElementById('video').srcObject = stream;
-            window.camInt = setInterval(() => {
-                window.curDap = (15 + Math.random()*20).toFixed(1);
-                document.getElementById('live-dap').innerText = window.curDap + " cm";
-            }, 1000);
-        }
-
         function capturarArbore() {
             navigator.geolocation.getCurrentPosition(p => {
                 const ei = document.getElementById('sel-especie').value;
@@ -226,10 +249,15 @@
             });
         }
 
-        function pecharCamara() {
-            if(stream) stream.getTracks().forEach(t => t.stop());
-            clearInterval(window.camInt);
-            irA('home');
+        function initMap() {
+            if(!map) {
+                map = L.map('map').setView([43.2, -8.3], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                markerGroup = L.layerGroup().addTo(map);
+            }
+            markerGroup.clearLayers();
+            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup));
+            map.invalidateSize();
         }
 
         function exportarExcel() {
