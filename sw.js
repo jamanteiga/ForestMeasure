@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medidor-v3';
+const CACHE_NAME = 'medidor-vfinal';
 const ASSETS = [
     './',
     './index.html',
