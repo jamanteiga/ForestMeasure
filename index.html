@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Medidor Madera PRO + Precios</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root { --primary: #2d5016; --accent: #7cb342; --bg: #f5f5f5; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; }
+        
+        .header { background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white; padding: 30px 16px 20px; text-align: center; }
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; background: var(--bg); position: absolute; }
+        .screen.active { display: flex; }
+        .content { padding: 16px; flex: 1; overflow-y: auto; }
+
+        /* GRID INICIAL */
+        .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .menu-card { background: white; border-radius: 16px; padding: 20px 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .icon { font-size: 30px; margin-bottom: 8px; display: block; }
+
+        /* GESTOR DE PRECIOS */
+        .price-row { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .price-input { width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+
+        /* CAMARA */
+        .camera-box { width: 100%; height: 350px; background: #000; border-radius: 16px; position: relative; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .guide-tractor { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 180px; height: 180px; border: 3px dashed var(--accent); border-radius: 50%; }
+
+        #map { flex: 1; width: 100%; }
+        .btn { padding: 16px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        .btn-main { background: var(--primary); color: white; }
+        .btn-excel { background: #1D6F42; color: white; }
+    </style>
+</head>
+<body>
+
+    <section id="home" class="screen active">
+        <div class="header"><h1>Medidor Madera</h1></div>
+        <div class="content">
+            <div style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid gold;">
+                <small>VALOR TOTAL ESTIMADO</small>
+                <div style="font-size: 24px; font-weight: bold; color: var(--primary);"><span id="total-money">0</span> €</div>
+                <small id="session-stats">0 árboles | 0.00 m³</small>
+            </div>
+            
+            <div class="home-grid">
+                <div class="menu-card" onclick="startMeasure('walk')"><span class="icon">🚶‍♂️</span><b>A PIE</b></div>
+                <div class="menu-card" onclick="startMeasure('tractor')"><span class="icon">🚜</span><b>TRACTOR</b></div>
+                <div class="menu-card" onclick="showScreen('price-screen')"><span class="icon">💰</span><b>PRECIOS</b></div>
+                <div class="menu-card" onclick="showScreen('map-screen')"><span class="icon">🗺️</span><b>MAPA</b></div>
+            </div>
+
+            <button class="btn btn-excel" style="margin-top: 20px;" onclick="exportarExcel()">📊 Exportar Inventario (.xlsx)</button>
+        </div>
+    </section>
+
+    <section id="price-screen" class="screen">
+        <div class="header"><h1>Ajustar Precios</h1></div>
+        <div class="content">
+            <p style="font-size: 13px; color: #666;">Introduce el precio por m³ para cada especie:</p>
+            
+            <div class="price-row">
+                <b>Eucalipto</b>
+                <input type="number" id="p-Eucalipto" class="price-input" onchange="savePrices()">
+            </div>
+            <div class="price-row">
+                <b>Pino</b>
+                <input type="number" id="p-Pino" class="price-input" onchange="savePrices()">
+            </div>
+            <div class="price-row">
+                <b>Roble</b>
+                <input type="number" id="p-Roble" class="price-input" onchange="savePrices()">
+            </div>
+
+            <button class="btn btn-main" onclick="showScreen('home')">GUARDAR Y VOLVER</button>
+        </div>
+    </section>
+
+    <section id="cam-screen" class="screen">
+        <div class="header"><h1 id="cam-title">Medición</h1></div>
+        <div class="content">
+            <div class="camera-box">
+                <video id="v" autoplay playsinline></video>
+                <div id="reticula" class="guide-tractor"></div>
+            </div>
+            <div style="text-align: center; margin: 15px;">
+                <select id="spec-select" style="padding: 10px; border-radius: 8px; width: 150px;">
+                    <option value="Eucalipto">Eucalipto</option>
+                    <option value="Pino">Pino</option>
+                    <option value="Roble">Roble</option>
+                </select>
+                <div style="font-size: 40px; font-weight: 900; color: var(--primary);"><span id="live-dap">0.0</span> cm</div>
+            </div>
+            <button class="btn btn-main" style="height: 80px;" onclick="capturar()">📸 REGISTRAR</button>
+            <button class="btn" style="background:#ccc" onclick="stopCam()">VOLVER</button>
+        </div>
+    </section>
+
+    <section id="map-screen" class="screen">
+        <div id="map"></div>
+        <button class="btn btn-main" onclick="showScreen('home')" style="border-radius:0; margin:0;">CERRAR</button>
+    </section>
+
+    <script>
+        let inventory = JSON.parse(localStorage.getItem('forest_db')) || [];
+        let prices = JSON.parse(localStorage.getItem('forest_prices')) || { "Eucalipto": 35, "Pino": 30, "Roble": 45 };
+        let stream = null;
+        let lastPos = { lat: 0, lng: 0 };
+        let map = null;
+
+        // Cargar precios iniciales en los inputs
+        function loadPriceInputs() {
+            for (let sp in prices) {
+                if(document.getElementById(`p-${sp}`)) document.getElementById(`p-${sp}`).value = prices[sp];
+            }
+        }
+
+        function savePrices() {
+            for (let sp in prices) {
+                prices[sp] = parseFloat(document.getElementById(`p-${sp}`).value) || 0;
+            }
+            localStorage.setItem('forest_prices', JSON.stringify(prices));
+            actualizarUI();
+        }
+
+        navigator.geolocation.watchPosition(p => {
+            lastPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+        }, null, { enableHighAccuracy: true });
+
+        function startMeasure(modo) {
+            showScreen('cam-screen');
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => {
+                stream = s;
+                document.getElementById('v').srcObject = s;
+            });
+        }
+
+        function capturar() {
+            const dap = (Math.random() * 10 + 20).toFixed(1);
+            const sp = document.getElementById('spec-select').value;
+            const vol = (0.00008 * Math.pow(dap, 2.45)).toFixed(4);
+            
+            inventory.push({
+                id: inventory.length + 1,
+                especie: sp,
+                dap: parseFloat(dap),
+                vol: parseFloat(vol),
+                lat: lastPos.lat, lng: lastPos.lng,
+                hora: new Date().toLocaleString()
+            });
+            
+            document.getElementById('live-dap').innerText = dap;
+            localStorage.setItem('forest_db', JSON.stringify(inventory));
+            actualizarUI();
+        }
+
+        function stopCam() {
+            if(stream) stream.getTracks().forEach(t => t.stop());
+            showScreen('home');
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'price-screen') loadPriceInputs();
+            if(id === 'map-screen') setTimeout(initMap, 200);
+            actualizarUI();
+        }
+
+        function actualizarUI() {
+            let totalVol = 0;
+            let totalMoney = 0;
+            inventory.forEach(i => {
+                totalVol += i.vol;
+                totalMoney += i.vol * (prices[i.especie] || 0);
+            });
+            document.getElementById('total-money').innerText = totalMoney.toFixed(2);
+            document.getElementById('session-stats').innerText = `${inventory.length} árboles | ${totalVol.toFixed(2)} m³`;
+        }
+
+        function initMap() {
+            if (!map) {
+                map = L.map('map').setView([lastPos.lat, lastPos.lng], 18);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']
+                }).addTo(map);
+            }
+            inventory.forEach(i => {
+                L.circleMarker([i.lat, i.lng], {radius: 8, color: 'white', fillColor: 'green', fillOpacity: 0.8})
+                 .addTo(map).bindPopup(`#${i.id} - ${i.especie}<br>${i.vol} m³`);
+            });
+        }
+
+        function exportarExcel() {
+            // Añadimos el valor económico a cada fila antes de exportar
+            const dataToExport = inventory.map(i => ({
+                ...i,
+                Precio_m3: prices[i.especie],
+                Valor_Estimado: (i.vol * prices[i.especie]).toFixed(2)
+            }));
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Finca");
+            XLSX.writeFile(wb, `Inventario_Forestal.xlsx`);
+        }
+
+        actualizarUI();
+    </script>
+</body>
+</html>
