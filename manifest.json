@@ -3,8 +3,8 @@
   "short_name": "Medidor",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#1a330a",
-  "theme_color": "#1a330a",
+  "background_color": "#2d5016",
+  "theme_color": "#2d5016",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/284/284988.png",

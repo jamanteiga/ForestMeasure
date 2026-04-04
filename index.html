@@ -2,7 +2,7 @@
 <html lang="gl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Medidor árbores</title>
     <link rel="manifest" href="manifest.json">
     
@@ -11,38 +11,42 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        :root { --primary: #1a330a; --bg: #f4f4f4; --accent: #ffd700; --danger: #d9534f; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; }
+        :root { --primary: #2d5016; --bg: #ffffff; --accent: #ffd700; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; color: #333; }
         
-        .header { background: var(--primary); color: white; padding: 35px 15px 10px; text-align: center; border-bottom: 3px solid var(--accent); }
-        .header h1 { margin: 0; font-size: 18px; text-transform: uppercase; }
+        .header { background: var(--primary); color: white; padding: 40px 15px 15px; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; }
 
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
         .screen.active { display: flex; }
-        .content { padding: 15px; flex: 1; overflow-y: auto; padding-bottom: 120px; }
+        .content { padding: 20px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
 
-        .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
+        /* O MARCADOR QUE CHE GUSTABA */
+        .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
         .total-display h2 { margin: 0; font-size: 32px; color: var(--accent); }
 
-        .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .selector-modo { display: flex; background: #eee; border-radius: 10px; padding: 5px; margin-bottom: 15px; }
-        .selector-modo button { flex: 1; border: none; padding: 10px; border-radius: 7px; font-weight: bold; cursor: pointer; }
-        .selector-modo button.active { background: var(--primary); color: white; }
+        /* TABOA DE PREZOS */
+        .config-box { background: #f4f7f0; padding: 15px; border-radius: 12px; border: 2px solid var(--primary); margin-bottom: 20px; }
+        .mode-selector { display: flex; gap: 5px; margin-bottom: 10px; }
+        .mode-selector button { flex: 1; padding: 8px; border-radius: 5px; border: 1px solid var(--primary); background: white; font-weight: bold; }
+        .mode-selector button.active { background: var(--primary); color: white; }
 
-        .tabla-prezos { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .tabla-prezos td { padding: 8px 0; border-bottom: 1px solid #eee; }
-        .tabla-prezos input { width: 50px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+        .prezos-list { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .prezos-list td { padding: 8px 0; border-bottom: 1px solid #ddd; }
+        .prezos-list input { width: 50px; padding: 4px; border-radius: 4px; border: 1px solid #ccc; text-align: center; }
 
-        .nav-bar { position: fixed; bottom: 0; width: 100%; background: white; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #ddd; padding: 10px 0 25px; }
-        .nav-item { text-align: center; color: var(--primary); font-size: 10px; font-weight: bold; text-transform: uppercase; cursor: pointer; }
-        .nav-item span { display: block; font-size: 24px; }
+        /* A CUADRÍCULA DE BOTÓNS GRANDES (INTERFACE ORIXINAL) */
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 20px; padding: 20px 10px; text-align: center; cursor: pointer; }
+        .icon { font-size: 30px; display: block; margin-bottom: 5px; }
+        .menu-item b { font-size: 14px; color: var(--primary); }
 
-        #map { height: 400px; width: 100%; border-radius: 12px; border: 2px solid var(--primary); }
-
-        .visor-cam { flex: 1; position: relative; background: #000; }
+        /* MAPA E CÁMARA */
+        #map { height: 350px; width: 100%; border-radius: 15px; border: 2px solid var(--primary); }
+        .visor-cont { flex: 1; position: relative; background: #000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .cam-ui { position: absolute; bottom: 30px; left: 0; width: 100%; padding: 20px; box-sizing: border-box; text-align: center; }
-        .btn-shot { width: 70px; height: 70px; background: red; border: 5px solid white; border-radius: 50%; margin: 10px auto; }
+        .cam-ui { position: absolute; bottom: 30px; left: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; }
+        .btn-capture { background: #ff6b6b; color: white; padding: 15px; border: none; border-radius: 10px; width: 100%; font-weight: bold; font-size: 18px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -51,96 +55,98 @@
         <div class="header"><h1>Medidor árbores</h1></div>
         <div class="content">
             <div class="total-display">
-                <h2 id="total-money">0.00 €</h2>
-                <p><span id="count-arb">0</span> árbores | <span id="total-vol">0.00</span> m³/t</p>
+                <h2 id="display-euros">0.00 €</h2>
+                <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> t/m³</p>
             </div>
-            <div class="card">
-                <div class="selector-modo">
-                    <button id="mode-pie" class="active" onclick="setModo('pie')">EN PÉ</button>
-                    <button id="mode-carg" onclick="setModo('carg')">CARGADEIRO</button>
+
+            <div class="config-box">
+                <div class="mode-selector">
+                    <button id="btn-pie" class="active" onclick="setModo('pie')">EN PÉ</button>
+                    <button id="btn-carg" onclick="setModo('carg')">CARGADEIRO</button>
                 </div>
-                <table class="tabla-prezos" id="tabla-body"></table>
+                <table class="prezos-list" id="tabla-prezos"></table>
+            </div>
+
+            <div class="menu-grid">
+                <div class="menu-item" onclick="abrirCamara()"><span class="icon">📸</span><b>ESCANEAR</b></div>
+                <div class="menu-item" onclick="irA('map-screen')"><span class="icon">📍</span><b>VER MAPA</b></div>
+                <div class="menu-item" onclick="exportarExcel()"><span class="icon">📊</span><b>EXCEL</b></div>
+                <div class="menu-item" onclick="limparTodo()"><span class="icon">🗑️</span><b>LIMPAR</b></div>
             </div>
         </div>
     </section>
 
     <section id="map-screen" class="screen">
-        <div class="header"><h1>Mapa de traballo</h1></div>
-        <div class="content"><div id="map"></div></div>
+        <div class="header"><h1>Mapa de Finca</h1></div>
+        <div class="content">
+            <div id="map"></div>
+            <button onclick="irA('home')" style="margin-top:20px; width:100%; padding:15px; border-radius:10px; background:var(--primary); color:white; border:none; font-weight:bold;">VOLVER</button>
+        </div>
     </section>
 
     <section id="cam-screen" class="screen">
-        <div class="visor-cam">
+        <div class="visor-cont">
             <video id="video" autoplay playsinline></video>
             <div class="cam-ui">
-                <div style="background:white; padding:10px; border-radius:10px; margin-bottom:10px;">
-                    <select id="sel-esp" style="width:100%; font-size:16px;"></select>
-                    <div id="live-dap" style="font-size:22px; font-weight:bold; margin-top:5px;">--- cm</div>
-                </div>
-                <button class="btn-shot" onclick="capturar()"></button>
-                <button onclick="pecharCamara()" style="color:white; background:none; border:none;">FECHAR</button>
+                <select id="sel-especie" style="width:100%; padding:12px; font-size:16px; border-radius:8px;"></select>
+                <div id="live-dap" style="font-size:26px; font-weight:bold; margin:10px 0; color:var(--primary);">--- cm</div>
+                <button class="btn-capture" onclick="capturarArbore()">CAPTURAR AGORA</button>
+                <button onclick="pecharCamara()" style="margin-top:10px; background:none; border:none; color:#666;">Cancelar</button>
             </div>
         </div>
     </section>
 
-    <nav class="nav-bar">
-        <div class="nav-item" onclick="irA('home')"><span>🏠</span>Inicio</div>
-        <div class="nav-item" onclick="abrirCamara()"><span>📸</span>Medir</div>
-        <div class="nav-item" onclick="irA('map-screen')"><span>📍</span>Mapa</div>
-        <div class="nav-item" onclick="exportarExcel()"><span>📊</span>Excel</div>
-    </nav>
-
     <script>
         const especiesBase = [
-            { id: 0, n: 'Euc. Globulus', p: 33.5, c: 48 },
-            { id: 1, n: 'Euc. Nitens', p: 29, c: 45 },
-            { id: 2, n: 'Pino Sierra', p: 20, c: 36.5 },
-            { id: 3, n: 'Pino Puntal', p: 22.5, c: 28 },
-            { id: 4, n: 'Carballo', p: 47.5, c: 66.5 },
-            { id: 5, n: 'Castaño', p: 85, c: 100 },
-            { id: 6, n: 'Ribeira', p: 19.5, c: 21 }
+            { id: 0, nome: 'Euc. Globulus', pe: 33.5, carg: 48 },
+            { id: 1, nome: 'Euc. Nitens', pe: 29, carg: 45 },
+            { id: 2, nome: 'Pino Sierra', pe: 20, carg: 36.5 },
+            { id: 3, nome: 'Pino Puntal', pe: 22.5, carg: 28 },
+            { id: 4, nome: 'Carballo', pe: 47.5, carg: 66.5 },
+            { id: 5, nome: 'Castaño', pe: 85, carg: 100 },
+            { id: 6, nome: 'Freixo/Olmo', pe: 19.5, carg: 21 }
         ];
 
         let inventario = JSON.parse(localStorage.getItem('medidor_data')) || [];
         let prezos = JSON.parse(localStorage.getItem('medidor_prezos')) || especiesBase;
-        let modo = 'pie';
+        let modoActual = 'pie';
         let map, markerGroup, stream;
 
-        function render() {
-            const body = document.getElementById('tabla-body');
-            const sel = document.getElementById('sel-esp');
+        function renderPrezos() {
+            const body = document.getElementById('tabla-prezos');
+            const sel = document.getElementById('sel-especie');
             body.innerHTML = ''; sel.innerHTML = '';
             prezos.forEach((e, i) => {
-                const val = modo === 'pie' ? e.p : e.c;
-                body.innerHTML += `<tr><td><b>${e.n}</b></td><td><input type="number" value="${val}" onchange="updateP(${i}, this.value)"> €</td></tr>`;
-                sel.innerHTML += `<option value="${i}">${e.n}</option>`;
+                const val = modoActual === 'pie' ? e.pe : e.carg;
+                body.innerHTML += `<tr><td><b>${e.nome}</b></td><td align="right"><input type="number" value="${val}" onchange="updateP(${i}, this.value)"> €</td></tr>`;
+                sel.innerHTML += `<option value="${i}">${e.nome}</option>`;
             });
-            calc();
+            actualizarTotais();
         }
 
         function updateP(i, v) {
-            if(modo === 'pie') prezos[i].p = parseFloat(v); else prezos[i].c = parseFloat(v);
+            if(modoActual === 'pie') prezos[i].pe = parseFloat(v); else prezos[i].carg = parseFloat(v);
             localStorage.setItem('medidor_prezos', JSON.stringify(prezos));
-            calc();
+            actualizarTotais();
         }
 
-        function calc() {
+        function setModo(m) {
+            modoActual = m;
+            document.getElementById('btn-pie').className = m === 'pie' ? 'active' : '';
+            document.getElementById('btn-carg').className = m === 'carg' ? 'active' : '';
+            renderPrezos();
+        }
+
+        function actualizarTotais() {
             let eur = 0, vol = 0;
             inventario.forEach(a => {
                 const e = prezos[a.ei];
-                const p = modo === 'pie' ? e.p : e.c;
+                const p = modoActual === 'pie' ? e.pe : e.carg;
                 eur += a.v * p; vol += a.v;
             });
-            document.getElementById('total-money').innerText = eur.toFixed(2) + " €";
-            document.getElementById('count-arb').innerText = inventario.length;
-            document.getElementById('total-vol').innerText = vol.toFixed(2);
-        }
-
-        function setModo(m) { 
-            modo = m; 
-            document.getElementById('mode-pie').className = m === 'pie' ? 'active' : '';
-            document.getElementById('mode-carg').className = m === 'carg' ? 'active' : '';
-            render(); 
+            document.getElementById('display-euros').innerText = eur.toFixed(2) + " €";
+            document.getElementById('display-count').innerText = inventario.length;
+            document.getElementById('display-vol').innerText = vol.toFixed(3);
         }
 
         function irA(id) {
@@ -156,7 +162,7 @@
                 markerGroup = L.layerGroup().addTo(map);
             }
             markerGroup.clearLayers();
-            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup).bindPopup(`${prezos[a.ei].n}: ${a.d}cm`));
+            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup).bindPopup(`<b>${prezos[a.ei].nome}</b><br>${a.d}cm | ${a.v}t/m³`));
         }
 
         async function abrirCamara() {
@@ -169,15 +175,15 @@
             }, 1000);
         }
 
-        function capturar() {
-            const ei = document.getElementById('sel-esp').value;
+        function capturarArbore() {
+            const ei = document.getElementById('sel-especie').value;
             const d = parseFloat(window.curDap);
             const v = parseFloat((0.00008 * Math.pow(d, 2.4)).toFixed(3));
             navigator.geolocation.getCurrentPosition(p => {
                 inventario.push({ ei, d, v, la: p.coords.latitude, lo: p.coords.longitude });
                 localStorage.setItem('medidor_data', JSON.stringify(inventario));
-                calc();
-                alert("Gardado!");
+                actualizarTotais();
+                alert("Rexistrado!");
             });
         }
 
@@ -188,15 +194,17 @@
         }
 
         function exportarExcel() {
-            const data = inventario.map(a => ({ Especie: prezos[a.ei].n, DAP: a.d, Vol: a.v, Lat: a.la, Lon: a.lo }));
-            const ws = XLSX.utils.json_to_sheet(data);
+            const d = inventario.map(a => ({ Especie: prezos[a.ei].nome, DAP: a.d, Vol: a.v, Lat: a.la, Lon: a.lo }));
+            const ws = XLSX.utils.json_to_sheet(d);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-            XLSX.writeFile(wb, "Inventario.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Finca");
+            XLSX.writeFile(wb, "Inventario_Monte.xlsx");
         }
 
+        function limparTodo() { if(confirm("Borrar todos os datos?")) { inventario = []; localStorage.removeItem('medidor_data'); actualizarTotais(); } }
+
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-        render();
+        renderPrezos();
     </script>
 </body>
 </html>
