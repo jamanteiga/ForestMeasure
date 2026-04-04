@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="gl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Medidor árboles</title>
+    <title>Medidor árbores</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -14,40 +13,43 @@
         :root { --primary: #2d5016; --bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; }
         
+        /* Header con Selector Idioma */
         .header { background: var(--primary); color: white; padding: 35px 15px 15px; text-align: center; position: relative; }
         .header h1 { margin: 0; font-size: 22px; }
         .lang-switch { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 5px; padding: 5px; font-size: 12px; }
 
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
         .screen.active { display: flex; }
-        .content { padding: 20px; flex: 1; overflow-y: auto; background: var(--bg); }
+        .content { padding: 20px; flex: 1; overflow-y: auto; }
 
+        /* Configuración Prezos/Especies */
         .config-box { background: #f1f8e9; padding: 15px; border-radius: 15px; margin-bottom: 20px; border: 1px solid #c5e1a5; }
-        .row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .row { display: flex; gap: 10px; margin-bottom: 10px; }
         .col { flex: 1; }
         label { font-size: 10px; font-weight: bold; color: #666; display: block; text-transform: uppercase; }
-        select, input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 14px; }
+        select, input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; box-sizing: border-box; }
 
+        /* Menú Principal */
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .menu-item { background: #f9f9f9; border: 2px solid #eee; border-radius: 20px; padding: 20px 10px; text-align: center; cursor: pointer; }
         .icon { font-size: 30px; display: block; margin-bottom: 8px; }
 
-        .visor-cont { flex: 1; position: relative; background: #000; overflow: hidden; }
+        /* Visores de Cámara */
+        .visor-container { flex: 1; position: relative; background: #000; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* CALIBRACIÓN */
+        /* LIÑAS DE CALIBRACIÓN (Área táctil ampliada) */
         .linea-roja { 
-            position: absolute; width: 30px; height: 60%; top: 20%; 
-            background: rgba(255, 0, 0, 0.3); border-left: 4px solid red; 
+            position: absolute; width: 50px; height: 80%; top: 10%; 
+            border-left: 5px solid red; background: rgba(255,0,0,0.05);
             cursor: pointer; z-index: 100; transform: translateX(-50%);
         }
 
-        .area-escaneo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 120px; height: 180px; border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 10px; }
+        .area-escaneo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 120px; height: 180px; border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 10px; pointer-events: none; }
         .area-escaneo.lock { border: 4px solid #00ff00; background: rgba(0, 255, 0, 0.1); }
 
         .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
         .btn-verde { background: var(--primary); color: white; }
-        .btn-excel { background: #1D6F42; color: white; margin-top: 20px; }
         #map { flex: 1; width: 100%; }
     </style>
 </head>
@@ -55,10 +57,10 @@
 
     <section id="home" class="screen active">
         <div class="header">
-            <h1 id="t-title">Medidor árboles</h1>
-            <select class="lang-switch" onchange="setLang(this.value)">
-                <option value="es">ESP</option>
+            <h1 id="t-title">Medidor árbores</h1>
+            <select class="lang-switch" onchange="mudarIdioma(this.value)">
                 <option value="gl">GAL</option>
+                <option value="es">ESP</option>
             </select>
         </div>
         <div class="content">
@@ -69,12 +71,12 @@
                         <select id="sel-especie">
                             <option value="Pino">Pino</option>
                             <option value="Eucalipto">Eucalipto</option>
-                            <option value="Roble">Roble</option>
+                            <option value="Carballo">Carballo</option>
                         </select>
                     </div>
                     <div class="col">
-                        <label id="t-unidad">Unidad</label>
-                        <select id="sel-unidad" onchange="updateUI()">
+                        <label id="t-unidad">Unidade</label>
+                        <select id="sel-unidad" onchange="anovarUI()">
                             <option value="m3">m³</option>
                             <option value="ton">Ton</option>
                         </select>
@@ -82,175 +84,183 @@
                 </div>
                 <div class="row">
                     <div class="col">
-                        <label id="t-precio">Precio (€/Unidad)</label>
-                        <input type="number" id="inp-precio" value="35" onchange="updateUI()">
+                        <label id="t-prezo">Prezo (€/Unidade)</label>
+                        <input type="number" id="inp-prezo" value="35" onchange="anovarUI()">
                     </div>
                 </div>
                 <div style="text-align: center; border-top: 1px solid #c5e1a5; padding-top: 10px;">
-                    <b style="font-size: 26px; color: var(--primary);"><span id="val-total">0.00</span> €</b><br>
-                    <small><span id="count-total">0</span> <span id="t-uds">árboles</span> | <span id="vol-total">0.000</span> <span id="lbl-unidad">m3</span></small>
+                    <b style="font-size: 24px; color: var(--primary);"><span id="val-total">0.00</span> €</b><br>
+                    <small><span id="count-total">0</span> <span id="t-uds">árbores</span> | <span id="vol-total">0.000</span> <span id="lbl-unidad">m3</span></small>
                 </div>
             </div>
 
             <div class="menu-grid">
-                <div class="menu-item" onclick="startApp('measure')"><span class="icon">🚶‍♂️</span><b id="t-pie">A PIE</b></div>
-                <div class="menu-item" onclick="startApp('measure')"><span class="icon">🚜</span><b id="t-tractor">TRACTOR</b></div>
-                <div class="menu-item" onclick="startApp('calib')"><span class="icon">📏</span><b id="t-calib">CALIBRAR</b></div>
-                <div class="menu-item" onclick="showScreen('map-screen')"><span class="icon">🗺️</span><b id="t-mapa">MAPA</b></div>
+                <div class="menu-item" onclick="iniciarCamara('medir')"><span class="icon">🚶‍♂️</span><b id="t-pe">A PÉ</b></div>
+                <div class="menu-item" onclick="iniciarCamara('medir')"><span class="icon">🚜</span><b id="t-tractor">TRACTOR</b></div>
+                <div class="menu-item" onclick="iniciarCamara('calib')"><span class="icon">📏</span><b id="t-calib">CALIBRAR</b></div>
+                <div class="menu-item" onclick="irPantalla('map-screen')"><span class="icon">🗺️</span><b id="t-mapa">MAPA</b></div>
             </div>
-            <button class="btn btn-excel" id="t-excel" onclick="exportExcel()">📊 EXPORTAR EXCEL</button>
+            <button class="btn" style="background:#1D6F42; color:white; margin-top:20px;" id="t-excel" onclick="exportarExcel()">📊 EXPORTAR EXCEL</button>
         </div>
     </section>
 
     <section id="calib-screen" class="screen">
         <div class="header"><h1 id="t-calib-h">Calibrar 300mm</h1></div>
-        <div class="visor-cont">
+        <div class="visor-container">
             <video id="v-calib" autoplay playsinline></video>
-            <div id="L1" class="linea-roja" style="left: 30%;" onclick="moveLine('L1')"></div>
-            <div id="L2" class="linea-roja" style="left: 70%;" onclick="moveLine('L2')"></div>
+            <div id="L1" class="linea-roja" style="left: 30%;" onclick="moverLinha('L1')"></div>
+            <div id="L2" class="linea-roja" style="left: 70%;" onclick="moverLinha('L2')"></div>
         </div>
         <div class="content" style="flex:0; background:white;">
-            <p id="t-calib-p" style="font-size:12px; color:#666; margin:0 0 10px 0;">Toca las líneas para ajustarlas a los 300mm de tu regla física.</p>
-            <button class="btn btn-verde" id="t-guardar" onclick="saveCalib()">GUARDAR</button>
-            <button class="btn" style="background:#eee;" id="t-volver" onclick="stopCam()">VOLVER</button>
+            <button class="btn btn-verde" id="t-gardar" onclick="gardarCalib()">GARDAR CALIBRACIÓN</button>
+            <button class="btn" style="background:#eee;" id="t-volver" onclick="pararCamara()">VOLVER</button>
         </div>
     </section>
 
-    <section id="measure-screen" class="screen">
-        <div class="visor-cont">
-            <video id="v-measure" autoplay playsinline></video>
+    <section id="medir-screen" class="screen">
+        <div class="visor-container">
+            <video id="v-medir" autoplay playsinline></video>
             <div class="area-escaneo" id="target"></div>
             <div style="position:absolute; bottom:20px; left:20px; right:20px; background:rgba(255,255,255,0.9); padding:20px; border-radius:20px; text-align:center;">
                 <b style="font-size:36px; color:var(--primary);"><span id="live-dap">---</span> cm</b><br>
-                <button class="btn btn-verde" id="t-detener" onclick="stopCam()">DETENER</button>
+                <button class="btn btn-verde" id="t-deter" onclick="pararCamara()">DETER</button>
             </div>
         </div>
     </section>
 
     <section id="map-screen" class="screen">
         <div id="map"></div>
-        <button class="btn btn-verde" style="margin:0; border-radius:0;" onclick="showScreen('home')">VOLVER</button>
+        <button class="btn btn-verde" style="margin:0; border-radius:0;" onclick="irPantalla('home')">VOLVER</button>
     </section>
 
     <script>
-        let data = JSON.parse(localStorage.getItem('forest_data')) || [];
-        let factor = parseFloat(localStorage.getItem('forest_cal')) || 1.0;
+        let inventario = JSON.parse(localStorage.getItem('f_data')) || [];
+        let factor = parseFloat(localStorage.getItem('f_cal')) || 1.0;
         let stream = null;
-        let isRunning = false;
-        let cooldown = false;
-        let l1Pos = 30, l2Pos = 70;
+        let activo = false;
+        let pL1 = 30, pL2 = 70;
 
-        const lang = {
-            es: { title: "Medidor árboles", especie: "Especie", unidad: "Unidad", precio: "Precio (€/Unidad)", uds: "árboles", pie: "A PIE", tractor: "TRACTOR", calib: "CALIBRAR", mapa: "MAPA", excel: "📊 EXPORTAR EXCEL", calib_h: "Calibrar 300mm", calib_p: "Ajusta las líneas a los 300mm de tu regla.", guardar: "GUARDAR", volver: "VOLVER", detener: "DETENER" },
-            gl: { title: "Medidor árbores", especie: "Especie", unidad: "Unidade", precio: "Prezo (€/Unidade)", uds: "árbores", pie: "A PÉ", tractor: "TRACTOR", calib: "CALIBRAR", mapa: "MAPA", excel: "📊 EXPORTAR EXCEL", calib_h: "Calibrar 300mm", calib_p: "Axusta as liñas aos 300mm da túa regra.", guardar: "GARDAR", volver: "VOLVER", detener: "DETER" }
+        const textos = {
+            gl: { title: "Medidor árbores", especie: "Especie", unidade: "Unidade", prezo: "Prezo (€/Unidade)", uds: "árbores", pe: "A PÉ", tractor: "TRACTOR", calib: "CALIBRAR", mapa: "MAPA", excel: "📊 EXPORTAR EXCEL", calib_h: "Calibrar 300mm", gardar: "GARDAR", volver: "VOLVER", deter: "DETER" },
+            es: { title: "Medidor árboles", especie: "Especie", unidade: "Unidad", prezo: "Precio (€/Unidad)", uds: "árboles", pe: "A PIE", tractor: "TRACTOR", calib: "CALIBRAR", mapa: "MAPA", excel: "📊 EXPORTAR EXCEL", calib_h: "Calibrar 300mm", gardar: "GUARDAR", volver: "VOLVER", deter: "DETENER" }
         };
 
-        function setLang(l) {
-            const d = lang[l];
-            document.getElementById('t-title').innerText = d.title;
-            document.getElementById('t-especie').innerText = d.especie;
-            document.getElementById('t-unidad').innerText = d.unidad;
-            document.getElementById('t-precio').innerText = d.precio;
-            document.getElementById('t-uds').innerText = d.uds;
-            document.getElementById('t-pie').innerText = d.pie;
-            document.getElementById('t-tractor').innerText = d.tractor;
-            document.getElementById('t-calib').innerText = d.calib;
-            document.getElementById('t-mapa').innerText = d.mapa;
-            document.getElementById('t-excel').innerText = d.excel;
-            document.getElementById('t-calib-h').innerText = d.calib_h;
-            document.getElementById('t-calib-p').innerText = d.calib_p;
-            document.getElementById('t-guardar').innerText = d.guardar;
-            document.getElementById('t-volver').innerText = d.volver;
-            document.getElementById('t-detener').innerText = d.detener;
+        function mudarIdioma(l) {
+            const t = textos[l];
+            document.getElementById('t-title').innerText = t.title;
+            document.getElementById('t-especie').innerText = t.especie;
+            document.getElementById('t-unidad').innerText = t.unidade;
+            document.getElementById('t-prezo').innerText = t.prezo;
+            document.getElementById('t-uds').innerText = t.uds;
+            document.getElementById('t-pe').innerText = t.pe;
+            document.getElementById('t-tractor').innerText = t.tractor;
+            document.getElementById('t-calib').innerText = t.calib;
+            document.getElementById('t-mapa').innerText = t.mapa;
+            document.getElementById('t-excel').innerText = t.excel;
+            document.getElementById('t-calib-h').innerText = t.calib_h;
+            document.getElementById('t-gardar').innerText = t.gardar;
+            document.getElementById('t-volver').innerText = t.volver;
+            document.getElementById('t-deter').innerText = t.deter;
         }
 
-        function showScreen(id) {
+        function irPantalla(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if(id === 'map-screen') setTimeout(initMap, 200);
-            updateUI();
+            anovarUI();
         }
 
-        async function startApp(mode) {
-            isRunning = true;
-            const targetId = mode === 'calib' ? 'calib-screen' : 'measure-screen';
-            const videoId = mode === 'calib' ? 'v-calib' : 'v-measure';
-            showScreen(targetId);
-            
+        async function iniciarCamara(modo) {
+            activo = true;
+            const pantalla = modo === 'calib' ? 'calib-screen' : 'medir-screen';
+            const videoId = modo === 'calib' ? 'v-calib' : 'v-medir';
+            irPantalla(pantalla);
+
+            if(stream) pararCamara(); // Reset seguridade
+
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-                document.getElementById(videoId).srcObject = stream;
-                if(mode === 'measure') loop();
-            } catch (e) { alert("Error cámara: " + e); stopCam(); }
-        }
-
-        function stopCam() {
-            isRunning = false;
-            if(stream) stream.getTracks().forEach(t => t.stop());
-            showScreen('home');
-        }
-
-        function moveLine(id) {
-            let n = prompt("Posición (0-100):", id === 'L1' ? l1Pos : l2Pos);
-            if(n && !isNaN(n)) {
-                if(id === 'L1') l1Pos = parseFloat(n); else l2Pos = parseFloat(n);
-                document.getElementById(id).style.left = n + "%";
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                const v = document.getElementById(videoId);
+                v.srcObject = stream;
+                await v.play();
+                if(modo === 'medir') bucleMedicion();
+            } catch (e) { 
+                alert("Erro ao acceder á cámara. Comproba os permisos."); 
+                pararCamara(); 
             }
         }
 
-        function saveCalib() {
-            let d = Math.abs(l2Pos - l1Pos);
-            if(d < 5) return alert("Líneas demasiado juntas");
-            factor = 300 / d;
-            localStorage.setItem('forest_cal', factor);
-            alert("Calibración guardada.");
-            stopCam();
+        function pararCamara() {
+            activo = false;
+            if(stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
+            }
+            irPantalla('home');
         }
 
-        function loop() {
-            if(!isRunning) return;
-            if(Math.random() > 0.985 && !cooldown) register();
-            requestAnimationFrame(loop);
+        function moverLinha(id) {
+            let n = prompt("Introduce posición (1-99):", id === 'L1' ? pL1 : pL2);
+            if(n && !isNaN(n)) {
+                let val = parseFloat(n);
+                if(id === 'L1') pL1 = val; else pL2 = val;
+                document.getElementById(id).style.left = val + "%";
+            }
         }
 
-        function register() {
-            cooldown = true;
-            document.getElementById('target').classList.add('lock');
+        function gardarCalib() {
+            let distPorentaxe = Math.abs(pL2 - pL1);
+            if(distPorentaxe < 5) return alert("As liñas están demasiado xuntas.");
+            factor = 300 / distPorentaxe; 
+            localStorage.setItem('f_cal', factor);
+            alert("Calibración gardada con éxito.");
+            pararCamara();
+        }
+
+        function bucleMedicion() {
+            if(!activo) return;
+            // Simulación de detección automática (o 99% do tempo non rexistra)
+            if(Math.random() > 0.99) rexistrar();
+            requestAnimationFrame(bucleMedicion);
+        }
+
+        function rexistrar() {
+            const t = document.getElementById('target');
+            t.classList.add('lock');
             
+            // O DAP calcúlase sobre o ancho da área (120px fixos nesta simulación)
             let dap = (15 * factor / 10).toFixed(1); 
-            let prc = parseFloat(document.getElementById('inp-precio').value);
-            let vol = (0.00008 * Math.pow(dap, 2.45)).toFixed(3);
+            let p = parseFloat(document.getElementById('inp-prezo').value);
+            let v = (0.00008 * Math.pow(dap, 2.45)).toFixed(3);
             
-            data.push({
-                especie: document.getElementById('sel-especie').value,
-                dap: dap, vol: vol, valor: (vol * prc).toFixed(2),
-                fecha: new Date().toLocaleTimeString()
+            inventario.push({ 
+                especie: document.getElementById('sel-especie').value, 
+                dap, vol: v, valor: (v*p).toFixed(2),
+                fecha: new Date().toLocaleString()
             });
-
-            document.getElementById('live-dap').innerText = dap;
-            localStorage.setItem('forest_data', JSON.stringify(data));
             
-            setTimeout(() => {
-                document.getElementById('target').classList.remove('lock');
-                cooldown = false;
-                updateUI();
-            }, 3000);
+            document.getElementById('live-dap').innerText = dap;
+            localStorage.setItem('f_data', JSON.stringify(inventario));
+            
+            setTimeout(() => { t.classList.remove('lock'); anovarUI(); }, 2000);
         }
 
-        function updateUI() {
-            let vTotal = data.reduce((s, a) => s + parseFloat(a.vol || 0), 0);
-            let eTotal = data.reduce((s, a) => s + parseFloat(a.valor || 0), 0);
-            document.getElementById('val-total').innerText = eTotal.toFixed(2);
-            document.getElementById('count-total').innerText = data.length;
-            document.getElementById('vol-total').innerText = vTotal.toFixed(3);
+        function anovarUI() {
+            let vol = inventario.reduce((s, a) => s + parseFloat(a.vol || 0), 0);
+            let eur = inventario.reduce((s, a) => s + parseFloat(a.valor || 0), 0);
+            document.getElementById('val-total').innerText = eur.toFixed(2);
+            document.getElementById('count-total').innerText = inventario.length;
+            document.getElementById('vol-total').innerText = vol.toFixed(3);
             document.getElementById('lbl-unidad').innerText = document.getElementById('sel-unidad').value;
         }
 
-        function exportExcel() {
-            if(data.length === 0) return;
-            const ws = XLSX.utils.json_to_sheet(data);
+        function exportarExcel() {
+            if(inventario.length === 0) return alert("Non hai datos.");
+            const ws = XLSX.utils.json_to_sheet(inventario);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Mediciones");
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
             XLSX.writeFile(wb, "Inventario_Monte.xlsx");
         }
 
@@ -261,8 +271,7 @@
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
             }
         }
-
-        updateUI();
+        anovarUI();
     </script>
 </body>
 </html>
