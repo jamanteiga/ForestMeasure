@@ -21,31 +21,29 @@
         .screen.active { display: flex; }
         .content { padding: 20px; flex: 1; overflow-y: auto; }
 
-        /* MENU PRINCIPAL */
+        /* CONFIGURACIÓN DE PRECIOS Y UNIDADES */
+        .config-box { background: #f1f8e9; padding: 15px; border-radius: 15px; margin-bottom: 20px; border: 1px solid #c5e1a5; }
+        .row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .col { flex: 1; }
+        label { font-size: 10px; font-weight: bold; color: #666; display: block; text-transform: uppercase; }
+        select, input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+
+        /* MENU */
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .menu-item { background: #f9f9f9; border: 2px solid #eee; border-radius: 20px; padding: 25px 10px; text-align: center; }
         .icon { font-size: 35px; display: block; margin-bottom: 10px; }
 
-        /* VISOR AHORRO BATERÍA */
-        .visor-container { flex: 1; position: relative; background: #000; }
+        /* VISOR Y CALIBRACIÓN */
+        .visor { flex: 1; position: relative; background: #000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        
-        .area-escaneo { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 100px; height: 160px; border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
-        }
-        .area-escaneo.lock { border: 4px solid #00ff00; background: rgba(0, 255, 0, 0.05); }
+        .area-escaneo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 110px; height: 170px; border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 10px; }
+        .area-escaneo.lock { border: 4px solid #00ff00; background: rgba(0, 255, 0, 0.1); }
+        .linea-roja { position: absolute; width: 3px; height: 120px; background: red; top: 50%; transform: translateY(-50%); cursor: pointer; }
 
-        .live-panel {
-            position: absolute; bottom: 30px; left: 20px; right: 20px;
-            background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 15px;
-            text-align: center;
-        }
-
-        .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; }
-        .btn-verde { background: var(--primary); color: white; margin-top: 10px; }
-        .btn-excel { background: #1D6F42; color: white; margin-top: 20px; }
+        .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        .btn-verde { background: var(--primary); color: white; }
+        .btn-excel { background: #1D6F42; color: white; margin-top: 25px; }
+        #map { flex: 1; width: 100%; }
     </style>
 </head>
 <body>
@@ -53,115 +51,194 @@
     <section id="home" class="screen active">
         <div class="header"><h1>Medidor árboles</h1></div>
         <div class="content">
-            <div style="background:#f1f8e9; padding:15px; border-radius:15px; margin-bottom:20px; text-align:center; border:1px solid #ddd;">
-                <small style="color:#666;">REGISTROS EN MEMORIA</small><br>
-                <b style="font-size:28px; color:var(--primary);" id="main-count">0</b>
+            <div class="config-box">
+                <div class="row">
+                    <div class="col">
+                        <label>Especie</label>
+                        <select id="sel-especie">
+                            <option value="Pino">Pino</option>
+                            <option value="Eucalipto">Eucalipto</option>
+                            <option value="Roble">Roble</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label>Unidad</label>
+                        <select id="sel-unidad">
+                            <option value="m3">Metro Cúbico (m³)</option>
+                            <option value="ton">Tonelada (tn)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label>Precio (€/Unidad)</label>
+                        <input type="number" id="inp-precio" value="35">
+                    </div>
+                </div>
+                <div style="text-align: center; border-top: 1px solid #c5e1a5; padding-top: 10px; margin-top: 5px;">
+                    <b style="font-size: 24px; color: var(--primary);"><span id="val-total">0.00</span> €</b><br>
+                    <small><span id="count-total">0</span> árboles | <span id="vol-total">0.000</span> <span id="lbl-unidad">m3</span></small>
+                </div>
             </div>
 
             <div class="menu-grid">
-                <div class="menu-item" onclick="iniciarEscaneo()"><span class="icon">🚶‍♂️</span><b>A PIE</b></div>
-                <div class="menu-item" onclick="iniciarEscaneo()"><span class="icon">🚜</span><b>TRACTOR</b></div>
+                <div class="menu-item" onclick="abrirModo('A PIE')"><span class="icon">🚶‍♂️</span><b>A PIE</b></div>
+                <div class="menu-item" onclick="abrirModo('TRACTOR')"><span class="icon">🚜</span><b>TRACTOR</b></div>
                 <div class="menu-item" onclick="showScreen('calib')"><span class="icon">📏</span><b>CALIBRAR</b></div>
                 <div class="menu-item" onclick="showScreen('map-screen')"><span class="icon">🗺️</span><b>MAPA</b></div>
             </div>
+            <button class="btn btn-excel" onclick="exportarExcel()">📊 EXPORTAR EXCEL</button>
+        </div>
+    </section>
 
-            <button class="btn btn-excel" onclick="exportarExcel()">📊 EXPORTAR EXCEL (.XLSX)</button>
+    <section id="calib" class="screen">
+        <div class="header"><h1>Calibrar 300mm</h1></div>
+        <div class="content">
+            <div style="width:100%; height:300px; background:#000; position:relative; border-radius:15px; overflow:hidden;">
+                <video id="v-calib" autoplay playsinline style="width:100%; height:100%; object-fit:cover;"></video>
+                <div id="L1" class="linea-roja" style="left: 20%;" onclick="moverLinea('L1')"></div>
+                <div id="L2" class="linea-roja" style="left: 80%;" onclick="moverLinea('L2')"></div>
+            </div>
+            <p style="font-size: 12px; color: #666;">Toca las líneas rojas para ajustarlas a los 300mm de tu regla.</p>
+            <button class="btn btn-verde" onclick="guardarCalib()">GUARDAR CALIBRACIÓN</button>
+            <button class="btn" style="background:#eee;" onclick="cerrarCalib()">VOLVER</button>
         </div>
     </section>
 
     <section id="cam-screen" class="screen">
-        <div class="visor-container">
+        <div class="visor">
             <video id="v" autoplay playsinline></video>
             <div class="area-escaneo" id="target"></div>
-            
-            <div class="live-panel">
-                <div style="font-size:28px; font-weight:bold; color:var(--primary);">
-                    DAP: <span id="live-dap">---</span> cm
-                </div>
-                <div id="status-text" style="font-size:12px; color:#666; margin-bottom:10px;">Escaneando automáticamente...</div>
-                <button class="btn btn-verde" onclick="pararEscaneo()">FINALIZAR</button>
+            <div style="position:absolute; bottom:20px; left:20px; right:20px; background:rgba(255,255,255,0.9); padding:20px; border-radius:20px; text-align:center; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <small id="txt-info" style="color:#666; font-weight:bold;"></small><br>
+                <b style="font-size:36px; color:var(--primary);"><span id="live-dap">---</span> cm</b><br>
+                <button class="btn btn-verde" onclick="pararModo()">DETENER Y VOLVER</button>
             </div>
         </div>
     </section>
 
+    <section id="map-screen" class="screen">
+        <div id="map"></div>
+        <button class="btn btn-verde" style="margin:0; border-radius:0;" onclick="showScreen('home')">VOLVER AL INICIO</button>
+    </section>
+
     <script>
-        let inventario = JSON.parse(localStorage.getItem('f_inventario')) || [];
-        let factorCalib = localStorage.getItem('f_calib_val') || 1.0;
+        let inventario = JSON.parse(localStorage.getItem('f_inv_v2')) || [];
+        let factorCalib = parseFloat(localStorage.getItem('f_cal_v2')) || 1.0;
         let stream = null;
-        let modoAuto = false;
+        let modoActivo = false;
         let cooldown = false;
+        let pL1 = 20, pL2 = 80;
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            document.getElementById('main-count').innerText = inventario.length;
+            actualizarCifras();
+            if(id === 'map-screen') setTimeout(initMap, 200);
+            if(id === 'calib') abrirCamaraCalib();
         }
 
-        async function iniciarEscaneo() {
+        function actualizarCifras() {
+            let totalVol = inventario.reduce((s, a) => s + parseFloat(a.vol || 0), 0);
+            let totalEuros = inventario.reduce((s, a) => s + parseFloat(a.valor || 0), 0);
+            document.getElementById('val-total').innerText = totalEuros.toFixed(2);
+            document.getElementById('count-total').innerText = inventario.length;
+            document.getElementById('vol-total').innerText = totalVol.toFixed(3);
+            document.getElementById('lbl-unidad').innerText = document.getElementById('sel-unidad').value;
+        }
+
+        // CALIBRACIÓN TÉCNICA
+        async function abrirCamaraCalib() {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            document.getElementById('v-calib').srcObject = stream;
+        }
+        function moverLinea(id) {
+            let n = prompt("Introduce posición de la línea (0-100):", id === 'L1' ? pL1 : pL2);
+            if(n) { 
+                if(id === 'L1') pL1 = parseFloat(n); 
+                else pL2 = parseFloat(n); 
+                document.getElementById(id).style.left = n + "%"; 
+            }
+        }
+        function guardarCalib() {
+            let pixelesRegla = Math.abs(pL2 - pL1);
+            factorCalib = 300 / pixelesRegla; // mm por cada % de pantalla
+            localStorage.setItem('f_cal_v2', factorCalib);
+            alert("Calibración guardada.");
+            cerrarCalib();
+        }
+        function cerrarCalib() { if(stream) stream.getTracks().forEach(t => t.stop()); showScreen('home'); }
+
+        // MODO AUTO-REGISTRO
+        async function abrirModo(modo) {
             showScreen('cam-screen');
-            modoAuto = true;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', frameRate: { ideal: 15 } } 
-                });
-                document.getElementById('v').srcObject = stream;
-                ejecutarIA();
-            } catch (err) {
-                alert("Error al acceder a la cámara");
-                pararEscaneo();
-            }
+            document.getElementById('txt-info').innerText = modo + " | " + document.getElementById('sel-especie').value;
+            modoActivo = true;
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', frameRate: 15 } });
+            document.getElementById('v').srcObject = stream;
+            loopAuto();
         }
 
-        function ejecutarIA() {
-            if (!modoAuto) return;
-
-            // Simulación de detección optimizada
-            if (Math.random() > 0.985 && !cooldown) {
-                registrarAutomatico();
-            }
-            requestAnimationFrame(ejecutarIA);
+        function loopAuto() {
+            if(!modoActivo) return;
+            // Detección simulada: en un caso real aquí se procesa el ancho del tronco en píxeles
+            if(Math.random() > 0.985 && !cooldown) registrarAutomatico();
+            requestAnimationFrame(loopAuto);
         }
 
         function registrarAutomatico() {
             cooldown = true;
-            const target = document.getElementById('target');
-            target.classList.add('lock');
-
-            let dap = (20 + Math.random() * 15).toFixed(1);
-            let vol = (0.00008 * Math.pow(dap, 2.45)).toFixed(3);
+            document.getElementById('target').classList.add('lock');
             
+            // EL DAP se calcula multiplicando el ancho detectado por el factor de calibración
+            let anchoDetectado = 15; // píxeles simulados
+            let dap = (anchoDetectado * factorCalib / 10).toFixed(1); 
+            
+            let esp = document.getElementById('sel-especie').value;
+            let prc = parseFloat(document.getElementById('inp-precio').value);
+            let uni = document.getElementById('sel-unidad').value;
+            
+            // Cálculo de volumen m3 aproximado
+            let vol = (0.00008 * Math.pow(dap, 2.45)).toFixed(3);
+            let valorCalculado = (vol * prc).toFixed(2);
+
             inventario.push({
-                id: inventario.length + 1,
+                especie: esp,
                 dap: dap,
                 vol: vol,
+                unidad: uni,
+                valor: valorCalculado,
                 fecha: new Date().toLocaleTimeString()
             });
 
             document.getElementById('live-dap').innerText = dap;
-            localStorage.setItem('f_inventario', JSON.stringify(inventario));
-
-            // Bloqueo de 3s para evitar duplicados y ahorrar procesado
-            setTimeout(() => {
-                target.classList.remove('lock');
-                cooldown = false;
+            localStorage.setItem('f_inv_v2', JSON.stringify(inventario));
+            
+            setTimeout(() => { 
+                document.getElementById('target').classList.remove('lock'); 
+                cooldown = false; 
+                actualizarCifras();
             }, 3000);
         }
 
-        function pararEscaneo() {
-            modoAuto = false;
-            if(stream) stream.getTracks().forEach(t => t.stop());
-            showScreen('home');
-        }
+        function pararModo() { modoActivo = false; if(stream) stream.getTracks().forEach(t => t.stop()); showScreen('home'); }
 
         function exportarExcel() {
-            if(inventario.length === 0) return;
+            if(inventario.length === 0) return alert("No hay datos");
             const ws = XLSX.utils.json_to_sheet(inventario);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Mediciones");
-            XLSX.writeFile(wb, "Inventario.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, "Mediciones_Forestales.xlsx");
         }
 
-        document.getElementById('main-count').innerText = inventario.length;
+        let map = null;
+        function initMap() {
+            if(!map) {
+                map = L.map('map').setView([40, -3], 5);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            }
+        }
+        actualizarCifras();
     </script>
 </body>
 </html>
