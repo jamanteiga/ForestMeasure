@@ -2,17 +2,17 @@
 <html lang="gl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Medidor Forestal</title>
-    
+    <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="iniciarOpenCV()"></script>
     <style>
         :root { --primary: #2d5016; --bg: #ffffff; --accent: #ffd700; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; color: #333; }
         
         .header { background: var(--primary); color: white; padding: 40px 15px 15px; text-align: center; }
-        .header h1 { margin: 0; font-size: 22px; text-transform: uppercase; }
+        .header h1 { margin: 0; font-size: 22px; }
 
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
         .screen.active { display: flex; }
@@ -21,28 +21,34 @@
         .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
         .total-display h2 { margin: 0; font-size: 32px; color: var(--accent); }
 
-        .config-box { background: #f4f7f0; padding: 15px; border-radius: 12px; border: 2px solid #2d5016; margin-bottom: 20px; }
+        .config-box { background: #f4f7f0; padding: 15px; border-radius: 12px; border: 2px solid var(--primary); margin-bottom: 20px; }
         .row { display: flex; gap: 10px; margin-bottom: 15px; }
         .col { flex: 1; }
         label { font-size: 11px; font-weight: bold; color: #444; display: block; margin-bottom: 5px; }
         select, input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; background: white; }
 
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 20px; padding: 25px 10px; text-align: center; cursor: pointer; }
-        .menu-item:active { background: #eee; }
-        .icon { font-size: 35px; display: block; margin-bottom: 10px; }
-        .menu-item b { font-size: 16px; color: var(--primary); }
+        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 20px; padding: 20px 10px; text-align: center; cursor: pointer; }
+        .icon { font-size: 30px; display: block; margin-bottom: 5px; }
+        .menu-item b { font-size: 14px; color: var(--primary); }
 
-        .visor-cont { flex: 1; position: relative; background: #000; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .linea { position: absolute; width: 60px; height: 80%; top: 10%; border-left: 6px solid red; cursor: pointer; z-index: 10; transform: translateX(-50%); background: rgba(255,0,0,0.1); }
-        .reticula { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 200px; border: 3px solid rgba(255,255,255,0.4); border-radius: 15px; pointer-events: none; }
-        .reticula.scan { border-color: #00ff00; background: rgba(0,255,0,0.1); }
-
-        .btn-ui { position: absolute; bottom: 30px; left: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; }
-        .btn-main { background: var(--primary); color: white; padding: 15px; border: none; border-radius: 10px; width: 100%; font-weight: bold; }
+        /* Visor Cámara e OpenCV */
+        .visor-cont { flex: 1; position: relative; background: #000; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 1; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; opacity: 0.7; }
         
-        .extra-stats { font-size: 12px; margin-top: 10px; color: #666; display: flex; justify-content: space-around; background: #eee; padding: 10px; border-radius: 8px; }
+        .linea { position: absolute; width: 60px; height: 80%; top: 10%; border-left: 4px solid red; cursor: pointer; z-index: 10; transform: translateX(-50%); }
+        .area-scan { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 200px; border: 2px dashed #00ff00; z-index: 10; }
+
+        .btn-ui { position: absolute; bottom: 30px; left: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; z-index: 20; }
+        .btn-main { background: var(--primary); color: white; padding: 15px; border: none; border-radius: 10px; width: 100%; font-weight: bold; font-size: 16px; }
+
+        /* Lista de Rexistros (Pausa/Edición) */
+        .lista-rexistros { margin-top: 20px; }
+        .item-rexistro { background: #f1f1f1; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-borrar { background: #aa0000; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        
+        #status-cv { font-size: 12px; color: orange; font-weight: bold; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -50,66 +56,44 @@
     <section id="home" class="screen active">
         <div class="header"><h1>Medidor Forestal</h1></div>
         <div class="content">
+            <div id="status-cv">Cargando Motor de Visión...</div>
             
             <div class="total-display">
-                <p>VALOR ACUMULADO</p>
                 <h2 id="display-euros">0.00 €</h2>
-                <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> <span id="lbl-uni">m³</span></p>
+                <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> m³</p>
             </div>
 
             <div class="config-box">
                 <div class="row">
                     <div class="col">
                         <label>ESPECIE</label>
-                        <select id="tipo-madeira" onchange="cargarPrezoGardado()">
+                        <select id="tipo-madeira" onchange="cargarPrezo()">
                             <option value="Pino">Pino</option>
                             <option value="Eucalipto">Eucalipto</option>
                             <option value="Carballo">Carballo</option>
-                            <option value="Olmo">Olmo</option>
-                            <option value="Chopo">Chopo</option>
-                            <option value="Sauce">Sauce</option>
                             <option value="Castiñeiro">Castiñeiro</option>
-                            <option value="Bidueiro">Bidueiro</option>
-                            <option value="Freixo">Freixo</option>
-                            <option value="Outros">Outros</option>
                         </select>
                     </div>
                     <div class="col">
-                        <label>UNIDADE</label>
-                        <select id="unidade" onchange="cargarPrezoGardado()">
-                            <option value="m3">m³</option>
-                            <option value="ton">tn</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col">
-                        <label>PREZO UNITARIO (€)</label>
-                        <input type="number" id="prezo-unidade" value="35" oninput="gardarPrezoActual()">
+                        <label>PREZO (€/m³)</label>
+                        <input type="number" id="prezo-unidade" value="35" oninput="gardarPrezo()">
                     </div>
                 </div>
             </div>
 
             <div class="menu-grid">
-                <div class="menu-item" onclick="abrirCamara('medir')"><span class="icon">🚶‍♂️</span><b>A PÉ</b></div>
-                <div class="menu-item" onclick="abrirCamara('medir')"><span class="icon">🚜</span><b>TRACTOR</b></div>
+                <div class="menu-item" onclick="abrirCamara('medir')"><span class="icon">📸</span><b>ESCANEAR</b></div>
                 <div class="menu-item" onclick="abrirCamara('calib')"><span class="icon">📏</span><b>CALIBRAR</b></div>
+                <div class="menu-item" onclick="irA('rexistros')"><span class="icon">📝</span><b>EDITAR / PAUSA</b></div>
                 <div class="menu-item" onclick="exportar()"><span class="icon">📊</span><b>EXCEL</b></div>
             </div>
-
-            <div class="extra-stats">
-                <span>DAP Medio: <b id="stat-dap">0</b>cm</span>
-                <span>Máx: <b id="stat-max">0</b>cm</span>
-                <span onclick="toggleGPS()" style="color:blue; cursor:pointer;">GPS: <b id="gps-status">OFF</b></span>
-            </div>
-            
-            <button onclick="limpar()" style="margin-top:20px; background:#aa0000; color:white; border:none; padding:12px; width:100%; border-radius:10px;">BORRAR MEDICIÓN ACTUAL</button>
         </div>
     </section>
 
     <section id="cam-screen" class="screen">
         <div class="visor-cont">
             <video id="video" autoplay playsinline></video>
+            <canvas id="canvas-cv"></canvas>
             
             <div id="calib-ui" style="display:none;">
                 <div id="L1" class="linea" style="left: 30%;" onclick="moverLinha('L1')"></div>
@@ -117,135 +101,25 @@
             </div>
 
             <div id="medir-ui" style="display:none;">
-                <div class="reticula" id="reticula"></div>
+                <div class="area-scan" id="reticula"></div>
             </div>
 
             <div class="btn-ui">
-                <div id="info-envivo" style="margin-bottom:10px; font-weight:bold; color:#2d5016; font-size:20px;">---</div>
-                <button class="btn-main" onclick="pecharCamara()">VOLVER E GARDAR</button>
+                <div id="info-envivo" style="margin-bottom:10px; font-weight:bold; color:var(--primary); font-size:24px;">Apuntando...</div>
+                <button class="btn-main" onclick="capturarArbore()" id="btn-captura" style="display:none; background:#ff6b6b; margin-bottom:10px;">CAPTURAR AGORA</button>
+                <button class="btn-main" onclick="pecharCamara()">VOLVER</button>
             </div>
         </div>
     </section>
 
-    <script>
-        // Rexistro de datos e prezos
-        let inventario = JSON.parse(localStorage.getItem('forest_v8_data')) || [];
-        let factorCalibracion = parseFloat(localStorage.getItem('forest_v8_factor')) || 1.0;
-        let prezosGardados = JSON.parse(localStorage.getItem('forest_v8_prezos')) || {};
-        
-        let gpsActivo = false;
-        let coords = { lat: "-", lon: "-" };
-        let stream = null;
-        let pL1 = 30, pL2 = 70;
-        let modoActual = '';
+    <section id="rexistros-screen" class="screen">
+        <div class="header"><h1>Rexistros (Pausa)</h1></div>
+        <div class="content">
+            <button class="btn-main" style="margin-bottom: 20px;" onclick="irA('home')">VOLVER Á FINCA</button>
+            <div class="lista-rexistros" id="lista-datos"></div>
+        </div>
+    </section>
 
-        function cargarPrezoGardado() {
-            let esp = document.getElementById('tipo-madeira').value;
-            let uni = document.getElementById('unidade').value;
-            let clave = esp + "_" + uni;
-            document.getElementById('prezo-unidade').value = prezosGardados[clave] || 35;
-            document.getElementById('lbl-uni').innerText = uni === 'm3' ? 'm³' : 'tn';
-            actualizarMarcador();
-        }
-
-        function gardarPrezoActual() {
-            let esp = document.getElementById('tipo-madeira').value;
-            let uni = document.getElementById('unidade').value;
-            let val = document.getElementById('prezo-unidade').value;
-            prezosGardados[esp + "_" + uni] = val;
-            localStorage.setItem('forest_v8_prezos', JSON.stringify(prezosGardados));
-        }
-
-        function toggleGPS() {
-            gpsActivo = !gpsActivo;
-            document.getElementById('gps-status').innerText = gpsActivo ? "ON" : "OFF";
-            if(gpsActivo) navigator.geolocation.getCurrentPosition(p => {
-                coords.lat = p.coords.latitude.toFixed(6);
-                coords.lon = p.coords.longitude.toFixed(6);
-            });
-        }
-
-        async function abrirCamara(modo) {
-            modoActual = modo;
-            document.getElementById('home').classList.remove('active');
-            document.getElementById('cam-screen').classList.add('active');
-            document.getElementById('calib-ui').style.display = modo === 'calib' ? 'block' : 'none';
-            document.getElementById('medir-ui').style.display = modo === 'medir' ? 'block' : 'none';
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                document.getElementById('video').srcObject = stream;
-                if(modo === 'medir') motorMedicion();
-            } catch (err) { alert("Erro cámara"); pecharCamara(); }
-        }
-
-        function pecharCamara() {
-            if(modoActual === 'calib') {
-                factorCalibracion = 300 / Math.abs(pL2 - pL1);
-                localStorage.setItem('forest_v8_factor', factorCalibracion);
-            }
-            if(stream) stream.getTracks().forEach(t => t.stop());
-            document.getElementById('cam-screen').classList.remove('active');
-            document.getElementById('home').classList.add('active');
-            actualizarMarcador();
-        }
-
-        function moverLinha(id) {
-            let n = prompt("Posición (1-99):", id === 'L1' ? pL1 : pL2);
-            if(n) {
-                if(id === 'L1') pL1 = parseInt(n); else pL2 = parseInt(n);
-                document.getElementById(id).style.left = n + "%";
-            }
-        }
-
-        function motorMedicion() {
-            if(modoActual !== 'medir') return;
-            if(Math.random() > 0.985) rexistrarArbore();
-            requestAnimationFrame(motorMedicion);
-        }
-
-        function rexistrarArbore() {
-            const ret = document.getElementById('reticula');
-            ret.classList.add('scan');
-            let dap = ((15 + Math.random() * 20) * factorCalibracion / 10).toFixed(1);
-            let pUni = parseFloat(document.getElementById('prezo-unidade').value);
-            let vol = (0.000075 * Math.pow(dap, 2.4)).toFixed(3);
-            
-            inventario.push({
-                especie: document.getElementById('tipo-madeira').value,
-                dap: dap, vol: vol, valor: (vol * pUni).toFixed(2),
-                lat: coords.lat, lon: coords.lon, hora: new Date().toLocaleTimeString()
-            });
-
-            document.getElementById('info-envivo').innerText = "+" + (vol * pUni).toFixed(2) + " €";
-            localStorage.setItem('forest_v8_data', JSON.stringify(inventario));
-            setTimeout(() => { ret.classList.remove('scan'); }, 1000);
-        }
-
-        function actualizarMarcador() {
-            let eur = 0, vol = 0, daps = 0, max = 0;
-            inventario.forEach(i => {
-                eur += parseFloat(i.valor);
-                vol += parseFloat(i.vol);
-                daps += parseFloat(i.dap);
-                if(parseFloat(i.dap) > max) max = parseFloat(i.dap);
-            });
-            document.getElementById('display-euros').innerText = eur.toFixed(2) + " €";
-            document.getElementById('display-count').innerText = inventario.length;
-            document.getElementById('display-vol').innerText = vol.toFixed(3);
-            document.getElementById('stat-dap').innerText = inventario.length ? (daps/inventario.length).toFixed(1) : 0;
-            document.getElementById('stat-max').innerText = max;
-        }
-
-        function exportar() {
-            const ws = XLSX.utils.json_to_sheet(inventario);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-            XLSX.writeFile(wb, "Informe_Monte.xlsx");
-        }
-
-        function limpar() { if(confirm("¿Borrar medición?")) { inventario = []; localStorage.removeItem('forest_v8_data'); actualizarMarcador(); } }
-        
-        cargarPrezoGardado();
-    </script>
+    <script src="./app.js"></script>
 </body>
 </html>

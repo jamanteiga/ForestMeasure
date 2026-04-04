@@ -1,0 +1,15 @@
+{
+  "name": "Medidor Forestal",
+  "short_name": "Forestal",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2d5016",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/284/284988.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
