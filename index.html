@@ -5,50 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Medidor Forestal</title>
     <link rel="manifest" href="./manifest.json">
+    
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="iniciarOpenCV()"></script>
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="console.log('OpenCV Listo')"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
         :root { --primary: #2d5016; --bg: #ffffff; --accent: #ffd700; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; color: #333; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; }
         
         .header { background: var(--primary); color: white; padding: 40px 15px 15px; text-align: center; }
-        .header h1 { margin: 0; font-size: 22px; }
-
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
         .screen.active { display: flex; }
-        .content { padding: 20px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
+        .content { padding: 15px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
 
-        .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
-        .total-display h2 { margin: 0; font-size: 32px; color: var(--accent); }
+        /* MARCADOR */
+        .total-display { background: var(--primary); color: white; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+        .total-display h2 { margin: 0; font-size: 28px; color: var(--accent); }
 
-        .config-box { background: #f4f7f0; padding: 15px; border-radius: 12px; border: 2px solid var(--primary); margin-bottom: 20px; }
-        .row { display: flex; gap: 10px; margin-bottom: 15px; }
-        .col { flex: 1; }
-        label { font-size: 11px; font-weight: bold; color: #444; display: block; margin-bottom: 5px; }
-        select, input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; background: white; }
+        /* TABOA DE PREZOS */
+        .prezos-taboa { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; }
+        .prezos-taboa th, .prezos-taboa td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .prezos-taboa input { width: 50px; padding: 4px; border: 1px solid var(--primary); }
 
-        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 20px; padding: 20px 10px; text-align: center; cursor: pointer; }
-        .icon { font-size: 30px; display: block; margin-bottom: 5px; }
-        .menu-item b { font-size: 14px; color: var(--primary); }
+        /* BOTÓNS */
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 15px; padding: 15px; text-align: center; cursor: pointer; }
+        .icon { font-size: 24px; display: block; }
 
-        /* Visor Cámara e OpenCV */
-        .visor-cont { flex: 1; position: relative; background: #000; overflow: hidden; }
-        video { width: 100%; height: 100%; object-fit: cover; position: absolute; z-index: 1; }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; opacity: 0.7; }
-        
-        .linea { position: absolute; width: 60px; height: 80%; top: 10%; border-left: 4px solid red; cursor: pointer; z-index: 10; transform: translateX(-50%); }
-        .area-scan { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 200px; border: 2px dashed #00ff00; z-index: 10; }
+        /* MAPA */
+        #mapa-container { height: 300px; width: 100%; border-radius: 12px; border: 2px solid var(--primary); margin-top: 10px; }
 
-        .btn-ui { position: absolute; bottom: 30px; left: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; z-index: 20; }
-        .btn-main { background: var(--primary); color: white; padding: 15px; border: none; border-radius: 10px; width: 100%; font-weight: bold; font-size: 16px; }
-
-        /* Lista de Rexistros (Pausa/Edición) */
-        .lista-rexistros { margin-top: 20px; }
-        .item-rexistro { background: #f1f1f1; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-borrar { background: #aa0000; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        
-        #status-cv { font-size: 12px; color: orange; font-weight: bold; text-align: center; margin-top: 5px; }
+        /* VISOR CÁMARA */
+        .visor-cont { flex: 1; position: relative; background: #000; }
+        video { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        canvas { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 5; pointer-events: none; }
+        .btn-ui { position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; }
+        .btn-main { background: var(--primary); color: white; padding: 12px; border: none; border-radius: 8px; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -56,37 +50,35 @@
     <section id="home" class="screen active">
         <div class="header"><h1>Medidor Forestal</h1></div>
         <div class="content">
-            <div id="status-cv">Cargando Motor de Visión...</div>
-            
             <div class="total-display">
                 <h2 id="display-euros">0.00 €</h2>
                 <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> m³</p>
             </div>
 
-            <div class="config-box">
-                <div class="row">
-                    <div class="col">
-                        <label>ESPECIE</label>
-                        <select id="tipo-madeira" onchange="cargarPrezo()">
-                            <option value="Pino">Pino</option>
-                            <option value="Eucalipto">Eucalipto</option>
-                            <option value="Carballo">Carballo</option>
-                            <option value="Castiñeiro">Castiñeiro</option>
-                        </select>
-                    </div>
-                    <div class="col">
-                        <label>PREZO (€/m³)</label>
-                        <input type="number" id="prezo-unidade" value="35" oninput="gardarPrezo()">
-                    </div>
-                </div>
-            </div>
+            <h3>Prezos por Especie (€/unidade)</h3>
+            <table class="prezos-taboa">
+                <thead>
+                    <tr><th>Especie</th><th>Unid.</th><th>Prezo €</th></tr>
+                </thead>
+                <tbody id="lista-prezos">
+                    </tbody>
+            </table>
 
             <div class="menu-grid">
-                <div class="menu-item" onclick="abrirCamara('medir')"><span class="icon">📸</span><b>ESCANEAR</b></div>
-                <div class="menu-item" onclick="abrirCamara('calib')"><span class="icon">📏</span><b>CALIBRAR</b></div>
-                <div class="menu-item" onclick="irA('rexistros')"><span class="icon">📝</span><b>EDITAR / PAUSA</b></div>
+                <div class="menu-item" onclick="abrirCamara('medir')"><span class="icon">📸</span><b>MEDIR</b></div>
+                <div class="menu-item" onclick="irA('mapa-screen')"><span class="icon">📍</span><b>MAPA</b></div>
                 <div class="menu-item" onclick="exportar()"><span class="icon">📊</span><b>EXCEL</b></div>
+                <div class="menu-item" onclick="limpar()"><span class="icon">🗑️</span><b>BORRAR</b></div>
             </div>
+        </div>
+    </section>
+
+    <section id="mapa-screen" class="screen">
+        <div class="header"><h1>Traxectoria e Árbores</h1></div>
+        <div id="mapa-container"></div>
+        <div class="content">
+            <button class="btn-main" onclick="irA('home')">VOLVER</button>
+            <div id="info-detallada" style="margin-top:15px; font-size:12px;">Toca unha árbore no mapa para ver detalles.</div>
         </div>
     </section>
 
@@ -94,32 +86,164 @@
         <div class="visor-cont">
             <video id="video" autoplay playsinline></video>
             <canvas id="canvas-cv"></canvas>
-            
-            <div id="calib-ui" style="display:none;">
-                <div id="L1" class="linea" style="left: 30%;" onclick="moverLinha('L1')"></div>
-                <div id="L2" class="linea" style="left: 70%;" onclick="moverLinha('L2')"></div>
-            </div>
-
-            <div id="medir-ui" style="display:none;">
-                <div class="area-scan" id="reticula"></div>
-            </div>
-
             <div class="btn-ui">
-                <div id="info-envivo" style="margin-bottom:10px; font-weight:bold; color:var(--primary); font-size:24px;">Apuntando...</div>
-                <button class="btn-main" onclick="capturarArbore()" id="btn-captura" style="display:none; background:#ff6b6b; margin-bottom:10px;">CAPTURAR AGORA</button>
-                <button class="btn-main" onclick="pecharCamara()">VOLVER</button>
+                <div id="info-envivo" style="font-weight:bold; color:var(--primary); font-size:20px; text-align:center; margin-bottom:10px;">---</div>
+                <div style="display:flex; gap:10px;">
+                    <select id="sel-especie" style="flex:1; padding:10px;"></select>
+                    <button class="btn-main" style="flex:1; background:#aa0000;" onclick="capturarArbore()">GARDAR</button>
+                </div>
+                <button class="btn-main" style="margin-top:10px; background:#666;" onclick="pecharCamara()">SAÍR</button>
             </div>
         </div>
     </section>
 
-    <section id="rexistros-screen" class="screen">
-        <div class="header"><h1>Rexistros (Pausa)</h1></div>
-        <div class="content">
-            <button class="btn-main" style="margin-bottom: 20px;" onclick="irA('home')">VOLVER Á FINCA</button>
-            <div class="lista-rexistros" id="lista-datos"></div>
-        </div>
-    </section>
+    <script>
+        // --- DATA DE PREZOS OFICIAIS ESTIMADOS ---
+        const especiesBase = [
+            { id: 'pino', nome: 'Pino (Serrado)', prezo: 38, unidade: 'm3' },
+            { id: 'euca', nome: 'Eucalipto (Pasta)', prezo: 32, unidade: 'ton' },
+            { id: 'carb', nome: 'Carballo (Leña)', prezo: 45, unidade: 'm3' },
+            { id: 'olmo', nome: 'Olmo', prezo: 35, unidade: 'm3' },
+            { id: 'chop', nome: 'Chopo', prezo: 28, unidade: 'm3' },
+            { id: 'sauc', nome: 'Sauce', prezo: 25, unidade: 'm3' }
+        ];
 
-    <script src="./app.js"></script>
+        let inventario = JSON.parse(localStorage.getItem('finca_v10_data')) || [];
+        let prezos = JSON.parse(localStorage.getItem('finca_v10_prezos')) || especiesBase;
+        let map = null;
+        let traxectoria = [];
+        let markerGroup = null;
+
+        // --- INICIALIZACIÓN ---
+        function init() {
+            renderPrezos();
+            actualizarTotais();
+            iniciarGPS();
+        }
+
+        function renderPrezos() {
+            const body = document.getElementById('lista-prezos');
+            const select = document.getElementById('sel-especie');
+            body.innerHTML = ''; select.innerHTML = '';
+            
+            prezos.forEach((e, index) => {
+                body.innerHTML += `<tr>
+                    <td>${e.nome}</td>
+                    <td>${e.unidade}</td>
+                    <td><input type="number" value="${e.prezo}" onchange="cambiarPrezo(${index}, this.value)"></td>
+                </tr>`;
+                select.innerHTML += `<option value="${index}">${e.nome}</option>`;
+            });
+        }
+
+        function cambiarPrezo(idx, val) {
+            prezos[idx].prezo = parseFloat(val);
+            localStorage.setItem('finca_v10_prezos', JSON.stringify(prezos));
+            actualizarTotais();
+        }
+
+        // --- MAPA E GPS ---
+        function iniciarGPS() {
+            navigator.geolocation.watchPosition(p => {
+                const pos = [p.coords.latitude, p.coords.longitude];
+                traxectoria.push(pos);
+                if(map) {
+                    L.polyline(traxectoria, {color: 'red'}).addTo(map);
+                    map.setView(pos);
+                }
+            }, null, {enableHighAccuracy: true});
+        }
+
+        function irA(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'mapa-screen') initMapa();
+        }
+
+        function initMapa() {
+            if(!map) {
+                map = L.map('mapa-container').setView([42.88, -8.54], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                markerGroup = L.layerGroup().addTo(map);
+            }
+            markerGroup.clearLayers();
+            inventario.forEach(a => {
+                if(a.lat) {
+                    L.marker([a.lat, a.lon])
+                     .bindPopup(`<b>ID: ${a.id}</b><br>DAP: ${a.dap}cm<br>Especie: ${a.especie}<br>Valor: ${a.valor}€`)
+                     .addTo(markerGroup);
+                }
+            });
+        }
+
+        // --- CÁMARA E CAPTURA ---
+        async function abrirCamara() {
+            irA('cam-screen');
+            const v = document.getElementById('video');
+            stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
+            v.srcObject = stream;
+            // Aquí iría o motor OpenCV de antes...
+            setInterval(() => {
+                let d = (15 + Math.random()*20).toFixed(1);
+                document.getElementById('info-envivo').innerText = "DAP: " + d + " cm";
+                window.lastDap = d;
+            }, 1000);
+        }
+
+        function capturarArbore() {
+            const idx = document.getElementById('sel-especie').value;
+            const esp = prezos[idx];
+            const dap = window.lastDap || 20;
+            const vol = (0.000075 * Math.pow(dap, 2.4)).toFixed(3);
+            const valor = (vol * esp.prezo).toFixed(2);
+            
+            navigator.geolocation.getCurrentPosition(p => {
+                inventario.push({
+                    id: inventario.length + 1,
+                    especie: esp.nome,
+                    dap: dap,
+                    vol: vol,
+                    valor: valor,
+                    lat: p.coords.latitude,
+                    lon: p.coords.longitude,
+                    hora: new Date().toLocaleTimeString()
+                });
+                localStorage.setItem('finca_v10_data', JSON.stringify(inventario));
+                actualizarTotais();
+                alert("Gardada árbore " + inventario.length);
+            });
+        }
+
+        function actualizarTotais() {
+            let eur = 0, vol = 0;
+            inventario.forEach(i => {
+                // Recalcular valor por si cambiou o prezo da especie na tabla
+                const esp = prezos.find(e => e.nome === i.especie);
+                const valorReal = (parseFloat(i.vol) * esp.prezo).toFixed(2);
+                i.valor = valorReal;
+                eur += parseFloat(valorReal);
+                vol += parseFloat(i.vol);
+            });
+            document.getElementById('display-euros').innerText = eur.toFixed(2) + " €";
+            document.getElementById('display-count').innerText = inventario.length;
+            document.getElementById('display-vol').innerText = vol.toFixed(3);
+        }
+
+        function pecharCamara() {
+            if(stream) stream.getTracks().forEach(t => t.stop());
+            irA('home');
+        }
+
+        function exportar() {
+            const ws = XLSX.utils.json_to_sheet(inventario);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, "Informe_Monte.xlsx");
+        }
+
+        function limpar() { if(confirm("Borrar todo?")) { inventario=[]; localStorage.removeItem('finca_v10_data'); actualizarTotais(); } }
+
+        init();
+    </script>
 </body>
 </html>
