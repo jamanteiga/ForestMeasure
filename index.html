@@ -19,37 +19,30 @@
 
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
         .screen.active { display: flex; }
-        .content { padding: 20px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
+        .content { padding: 20px; flex: 1; overflow-y: auto; padding-bottom: 40px; }
 
-        /* MARCADOR SUPERIOR */
+        /* MARCADOR */
         .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
         .total-display h2 { margin: 0; font-size: 32px; color: var(--accent); }
 
-        /* EDICIÓN DE PREZOS */
-        .config-box { background: #f4f7f0; padding: 15px; border-radius: 12px; border: 2px solid var(--primary); margin-bottom: 20px; }
-        .mode-selector { display: flex; gap: 5px; margin-bottom: 10px; }
-        .mode-selector button { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid var(--primary); background: white; font-weight: bold; font-size: 12px; }
-        .mode-selector button.active { background: var(--primary); color: white; }
+        /* CUADRÍCULA DE 6 BOTÓNS */
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 15px; padding: 20px 5px; text-align: center; cursor: pointer; }
+        .icon { font-size: 30px; display: block; margin-bottom: 5px; }
+        .menu-item b { font-size: 12px; color: var(--primary); text-transform: uppercase; }
 
-        .prezos-list { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .prezos-list td { padding: 8px 0; border-bottom: 1px solid #ddd; }
-        .prezos-list input { width: 55px; padding: 5px; border-radius: 4px; border: 1px solid #ccc; text-align: center; font-weight: bold; }
+        /* TABOA DE EDICIÓN DE ARQUIVOS/DATOS */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .btn-del { background: #d9534f; color: white; border: none; padding: 5px; border-radius: 4px; }
 
-        /* A TÚA CUADRÍCULA DE BOTÓNS GRANDES */
-        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 20px; padding: 25px 10px; text-align: center; cursor: pointer; transition: 0.2s; }
-        .menu-item:active { background: #eee; transform: scale(0.98); }
-        .icon { font-size: 35px; display: block; margin-bottom: 8px; }
-        .menu-item b { font-size: 14px; color: var(--primary); text-transform: uppercase; }
-
-        /* MAPA */
-        #map { height: 400px; width: 100%; border-radius: 15px; border: 2px solid var(--primary); }
+        /* MAPA FULL SCREEN */
+        #map { flex: 1; width: 100%; }
 
         /* CÁMARA */
         .visor-cont { flex: 1; position: relative; background: #000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .cam-ui { position: absolute; bottom: 30px; left: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .btn-capture { background: #d9534f; color: white; padding: 18px; border: none; border-radius: 12px; width: 100%; font-weight: bold; font-size: 20px; margin-top: 15px; }
+        .cam-ui { position: absolute; bottom: 20px; left: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; }
     </style>
 </head>
 <body>
@@ -62,45 +55,58 @@
                 <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> t/m³</p>
             </div>
 
-            <div class="config-box">
-                <div class="mode-selector">
-                    <button id="btn-pie" class="active" onclick="setModo('pie')">PREZO EN PÉ</button>
-                    <button id="btn-carg" onclick="setModo('carg')">CARGADEIRO</button>
-                </div>
-                <table class="prezos-list" id="tabla-prezos"></table>
-            </div>
-
             <div class="menu-grid">
-                <div class="menu-item" onclick="abrirCamara()"><span class="icon">📸</span><b>ESCANEAR</b></div>
-                <div class="menu-item" onclick="irA('map-screen')"><span class="icon">📍</span><b>VER MAPA</b></div>
-                <div class="menu-item" onclick="exportarExcel()"><span class="icon">📊</span><b>EXCEL</b></div>
-                <div class="menu-item" onclick="limparTodo()"><span class="icon">🗑️</span><b>LIMPAR</b></div>
+                <div class="menu-item" onclick="alert('Calibración en proceso...')"><span class="icon">⚙️</span><b>Calibración</b></div>
+                <div class="menu-item" onclick="abrirCamara()"><span class="icon">📸</span><b>Medir</b></div>
+                <div class="menu-item" onclick="irA('map-screen')"><span class="icon">📍</span><b>Mapa</b></div>
+                <div class="menu-item" onclick="irA('prezos-screen')"><span class="icon">💰</span><b>Prezos</b></div>
+                <div class="menu-item" onclick="irA('datos-screen')"><span class="icon">📂</span><b>Arquivos</b></div>
+                <div class="menu-item" onclick="exportarExcel()"><span class="icon">📊</span><b>Excel</b></div>
             </div>
         </div>
     </section>
 
-    <section id="map-screen" class="screen">
-        <div class="header"><h1>Mapa da Finca</h1></div>
+    <section id="prezos-screen" class="screen">
+        <div class="header"><h1>Prezos Abegondo</h1></div>
         <div class="content">
-            <div id="map"></div>
-            <button onclick="irA('home')" style="margin-top:20px; width:100%; padding:18px; border-radius:12px; background:var(--primary); color:white; border:none; font-weight:bold; font-size:16px;">VOLVER AO INICIO</button>
+            <div style="display:flex; gap:5px; margin-bottom:15px;">
+                <button onclick="setModo('pie')" id="btn-pie" style="flex:1; padding:10px;">EN PÉ</button>
+                <button onclick="setModo('carg')" id="btn-carg" style="flex:1; padding:10px;">CARGADEIRO</button>
+            </div>
+            <table id="tabla-prezos" style="width:100%;"></table>
+            <button onclick="irA('home')" style="width:100%; padding:15px; margin-top:20px; background:var(--primary); color:white; border:none; border-radius:10px;">GARDAR E VOLVER</button>
         </div>
+    </section>
+
+    <section id="datos-screen" class="screen">
+        <div class="header"><h1>Editar Árbores</h1></div>
+        <div class="content">
+            <table class="data-table">
+                <thead><tr><th>ID</th><th>Esp.</th><th>DAP</th><th>Acción</th></tr></thead>
+                <tbody id="lista-datos"></tbody>
+            </table>
+            <button onclick="irA('home')" style="width:100%; padding:15px; margin-top:20px; background:var(--primary); color:white; border:none; border-radius:10px;">VOLVER</button>
+        </div>
+    </section>
+
+    <section id="map-screen" class="screen">
+        <div id="map"></div>
+        <button onclick="irA('home')" style="position:absolute; bottom:20px; left:20px; right:20px; z-index:1000; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold;">SAÍR DO MAPA</button>
     </section>
 
     <section id="cam-screen" class="screen">
         <div class="visor-cont">
             <video id="video" autoplay playsinline></video>
             <div class="cam-ui">
-                <select id="sel-especie" style="width:100%; padding:15px; font-size:18px; border-radius:10px; border:2px solid #ccc;"></select>
-                <div id="live-dap" style="font-size:32px; font-weight:bold; margin:15px 0; color:var(--primary);">--- cm</div>
-                <button class="btn-capture" onclick="capturarArbore()">CAPTURAR AGORA</button>
-                <button onclick="pecharCamara()" style="margin-top:15px; background:none; border:none; color:#d9534f; font-weight:bold;">CANCELAR</button>
+                <select id="sel-especie" style="width:100%; padding:10px; margin-bottom:10px;"></select>
+                <div id="live-dap" style="font-size:24px; font-weight:bold; color:var(--primary);">--- cm</div>
+                <button onclick="capturarArbore()" style="width:100%; padding:15px; background:#d9534f; color:white; border:none; border-radius:10px; font-weight:bold;">CAPTURAR</button>
+                <button onclick="pecharCamara()" style="margin-top:10px; background:none; border:none; color:#666;">Cancelar</button>
             </div>
         </div>
     </section>
 
     <script>
-        // DATOS ORIXINAIS ABEGONDO (NON CERTIFICADA)
         const especiesBase = [
             { id: 0, nome: 'Euc. Globulus', pe: 33.5, carg: 48 },
             { id: 1, nome: 'Euc. Nitens', pe: 29, carg: 45 },
@@ -108,7 +114,7 @@
             { id: 3, nome: 'Pino Puntal', pe: 22.5, carg: 28 },
             { id: 4, nome: 'Carballo', pe: 47.5, carg: 66.5 },
             { id: 5, nome: 'Castaño', pe: 85, carg: 100 },
-            { id: 6, nome: 'Ribeira (Freixo/Olmo)', pe: 19.5, carg: 21 }
+            { id: 6, nome: 'Ribeira', pe: 19.5, carg: 21 }
         ];
 
         let inventario = JSON.parse(localStorage.getItem('medidor_data')) || [];
@@ -116,16 +122,21 @@
         let modoActual = 'pie';
         let map, markerGroup, stream;
 
+        function irA(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'map-screen') setTimeout(initMap, 200);
+            if(id === 'datos-screen') renderDatos();
+            if(id === 'prezos-screen') renderPrezos();
+        }
+
         function renderPrezos() {
             const body = document.getElementById('tabla-prezos');
-            const sel = document.getElementById('sel-especie');
-            body.innerHTML = ''; sel.innerHTML = '';
+            body.innerHTML = '';
             prezos.forEach((e, i) => {
                 const val = (modoActual === 'pie') ? e.pe : e.carg;
-                body.innerHTML += `<tr><td><b>${e.nome}</b></td><td align="right"><input type="number" value="${val}" onchange="updateP(${i}, this.value)"> €</td></tr>`;
-                sel.innerHTML += `<option value="${i}">${e.nome}</option>`;
+                body.innerHTML += `<tr><td><b>${e.nome}</b></td><td align="right"><input type="number" value="${val}" style="width:60px;" onchange="updateP(${i}, this.value)"> €</td></tr>`;
             });
-            actualizarTotais();
         }
 
         function updateP(i, v) {
@@ -136,27 +147,48 @@
 
         function setModo(m) {
             modoActual = m;
-            document.getElementById('btn-pie').className = (m === 'pie') ? 'active' : '';
-            document.getElementById('btn-carg').className = (m === 'carg') ? 'active' : '';
             renderPrezos();
+        }
+
+        function renderDatos() {
+            const body = document.getElementById('lista-datos');
+            body.innerHTML = '';
+            inventario.forEach((a, i) => {
+                body.innerHTML += `<tr>
+                    <td>${i+1}</td>
+                    <td>${prezos[a.ei].nome}</td>
+                    <td><input type="number" value="${a.d}" style="width:50px;" onchange="editarArbore(${i}, this.value)"></td>
+                    <td><button class="btn-del" onclick="borrarArbore(${i})">🗑️</button></td>
+                </tr>`;
+            });
+        }
+
+        function editarArbore(i, novoDap) {
+            inventario[i].d = parseFloat(novoDap);
+            inventario[i].v = parseFloat((0.00008 * Math.pow(novoDap, 2.4)).toFixed(3));
+            localStorage.setItem('medidor_data', JSON.stringify(inventario));
+            actualizarTotais();
+        }
+
+        function borrarArbore(i) {
+            if(confirm("Eliminar esta árbore?")) {
+                inventario.splice(i, 1);
+                localStorage.setItem('medidor_data', JSON.stringify(inventario));
+                renderDatos();
+                actualizarTotais();
+            }
         }
 
         function actualizarTotais() {
             let eur = 0, vol = 0;
             inventario.forEach(a => {
                 const e = prezos[a.ei];
-                const p = (modoActual === 'pie') ? e.pe : e.carg;
-                eur += a.v * p; vol += a.v;
+                eur += a.v * ((modoActual === 'pie') ? e.pe : e.carg);
+                vol += a.v;
             });
             document.getElementById('display-euros').innerText = eur.toFixed(2) + " €";
             document.getElementById('display-count').innerText = inventario.length;
             document.getElementById('display-vol').innerText = vol.toFixed(3);
-        }
-
-        function irA(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if(id === 'map-screen') initMap();
         }
 
         function initMap() {
@@ -166,11 +198,14 @@
                 markerGroup = L.layerGroup().addTo(map);
             }
             markerGroup.clearLayers();
-            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup).bindPopup(`<b>${prezos[a.ei].nome}</b><br>${a.d}cm | ${a.v}t/m³`));
+            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup));
+            map.invalidateSize();
         }
 
         async function abrirCamara() {
             irA('cam-screen');
+            const sel = document.getElementById('sel-especie');
+            sel.innerHTML = prezos.map((e,i) => `<option value="${i}">${e.nome}</option>`).join('');
             stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
             document.getElementById('video').srcObject = stream;
             window.camInt = setInterval(() => {
@@ -180,14 +215,14 @@
         }
 
         function capturarArbore() {
-            const ei = document.getElementById('sel-especie').value;
-            const d = parseFloat(window.curDap);
-            const v = parseFloat((0.00008 * Math.pow(d, 2.4)).toFixed(3));
             navigator.geolocation.getCurrentPosition(p => {
+                const ei = document.getElementById('sel-especie').value;
+                const d = parseFloat(window.curDap);
+                const v = parseFloat((0.00008 * Math.pow(d, 2.4)).toFixed(3));
                 inventario.push({ ei, d, v, la: p.coords.latitude, lo: p.coords.longitude });
                 localStorage.setItem('medidor_data', JSON.stringify(inventario));
                 actualizarTotais();
-                alert("Rexistrado con éxito!");
+                alert("Capturada!");
             });
         }
 
@@ -198,17 +233,14 @@
         }
 
         function exportarExcel() {
-            const d = inventario.map(a => ({ Especie: prezos[a.ei].nome, DAP: a.d, Vol: a.v, Lat: a.la, Lon: a.lo }));
+            const d = inventario.map(a => ({ Especie: prezos[a.ei].nome, DAP: a.d, Vol: a.v }));
             const ws = XLSX.utils.json_to_sheet(d);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-            XLSX.writeFile(wb, "Inventario_Monte.xlsx");
+            XLSX.writeFile(wb, "Inventario.xlsx");
         }
 
-        function limparTodo() { if(confirm("Borrar todos os datos do inventario?")) { inventario = []; localStorage.removeItem('medidor_data'); actualizarTotais(); } }
-
-        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-        renderPrezos();
+        actualizarTotais();
     </script>
 </body>
 </html>
