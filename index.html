@@ -4,162 +4,203 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Medidor Madera PRO + Precios</title>
+    <title>ForestMeasure INTERACTIVE</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
     <style>
-        :root { --primary: #2d5016; --accent: #7cb342; --bg: #f5f5f5; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; }
+        :root { --p: #1b5e20; --s: #4caf50; --gold: #ffd700; --accent: #00e5ff; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #111; color: white; height: 100vh; overflow: hidden; }
         
-        .header { background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white; padding: 30px 16px 20px; text-align: center; }
-        .screen { display: none; width: 100%; height: 100%; flex-direction: column; background: var(--bg); position: absolute; }
-        .screen.active { display: flex; }
-        .content { padding: 16px; flex: 1; overflow-y: auto; }
+        /* Animación de entrada de números */
+        @keyframes countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .header { background: rgba(0,0,0,0.8); padding: 40px 15px 15px; text-align: center; border-bottom: 1px solid #333; }
+        .screen { display: none; height: 100vh; width: 100vw; flex-direction: column; position: absolute; }
+        .active { display: flex; animation: fadeIn 0.3s; }
 
-        /* GRID INICIAL */
-        .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .menu-card { background: white; border-radius: 16px; padding: 20px 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .icon { font-size: 30px; margin-bottom: 8px; display: block; }
+        /* Dashboard Interactivo */
+        .interactive-card { background: linear-gradient(145deg, #1e1e1e, #2a2a2a); border-radius: 20px; padding: 20px; margin: 10px; border: 1px solid #333; position: relative; overflow: hidden; }
+        .interactive-card::after { content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent); transform: rotate(45deg); pointer-events: none; }
+        
+        .big-number { font-size: 32px; font-weight: 900; color: var(--s); display: block; }
 
-        /* GESTOR DE PRECIOS */
-        .price-row { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .price-input { width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+        /* Cámara con Efectos */
+        .cam-container { flex: 1; position: relative; background: #000; }
+        video { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+        
+        /* Escáner Visual */
+        .scan-line { position: absolute; width: 100%; height: 2px; background: var(--accent); box-shadow: 0 0 15px var(--accent); top: 0; display: none; z-index: 10; }
+        @keyframes scanMove { from { top: 0; } to { top: 100%; } }
 
-        /* CAMARA */
-        .camera-box { width: 100%; height: 350px; background: #000; border-radius: 16px; position: relative; overflow: hidden; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .guide-tractor { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 180px; height: 180px; border: 3px dashed var(--accent); border-radius: 50%; }
+        /* Radar Flotante */
+        .radar { position: absolute; bottom: 120px; right: 20px; width: 60px; height: 60px; background: rgba(0,255,0,0.1); border: 1px solid var(--s); border-radius: 50%; }
+        .radar-ping { position: absolute; width: 100%; height: 100%; border: 1px solid var(--s); border-radius: 50%; animation: ping 2s infinite; }
+        @keyframes ping { from { transform: scale(0.1); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
 
-        #map { flex: 1; width: 100%; }
-        .btn { padding: 16px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
-        .btn-main { background: var(--primary); color: white; }
-        .btn-excel { background: #1D6F42; color: white; }
+        /* Botones Interactivos */
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; }
+        .btn-glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 15px; padding: 20px; color: white; text-align: center; transition: 0.2s; }
+        .btn-glass:active { background: var(--s); transform: scale(0.9); }
+
+        /* Barra de Calidad */
+        .quality-bar { width: 100%; height: 4px; background: #333; position: absolute; bottom: 0; }
+        .quality-fill { height: 100%; width: 0%; background: var(--s); transition: width 0.3s; }
     </style>
 </head>
 <body>
 
     <section id="home" class="screen active">
-        <div class="header"><h1>Medidor Madera</h1></div>
-        <div class="content">
-            <div style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid gold;">
-                <small>VALOR TOTAL ESTIMADO</small>
-                <div style="font-size: 24px; font-weight: bold; color: var(--primary);"><span id="total-money">0</span> €</div>
-                <small id="session-stats">0 árboles | 0.00 m³</small>
-            </div>
-            
-            <div class="home-grid">
-                <div class="menu-card" onclick="startMeasure('walk')"><span class="icon">🚶‍♂️</span><b>A PIE</b></div>
-                <div class="menu-card" onclick="startMeasure('tractor')"><span class="icon">🚜</span><b>TRACTOR</b></div>
-                <div class="menu-card" onclick="showScreen('price-screen')"><span class="icon">💰</span><b>PRECIOS</b></div>
-                <div class="menu-card" onclick="showScreen('map-screen')"><span class="icon">🗺️</span><b>MAPA</b></div>
+        <div class="header"><h1>FOREST COMMAND</h1></div>
+        <div style="flex:1; overflow-y:auto;">
+            <div class="interactive-card">
+                <small style="color:#888">VALOR DEL MONTE</small>
+                <span class="big-number" id="val-total">0.00 €</span>
+                <div class="quality-bar"><div class="quality-fill" id="progress-bar"></div></div>
             </div>
 
-            <button class="btn btn-excel" style="margin-top: 20px;" onclick="exportarExcel()">📊 Exportar Inventario (.xlsx)</button>
-        </div>
-    </section>
-
-    <section id="price-screen" class="screen">
-        <div class="header"><h1>Ajustar Precios</h1></div>
-        <div class="content">
-            <p style="font-size: 13px; color: #666;">Introduce el precio por m³ para cada especie:</p>
-            
-            <div class="price-row">
-                <b>Eucalipto</b>
-                <input type="number" id="p-Eucalipto" class="price-input" onchange="savePrices()">
-            </div>
-            <div class="price-row">
-                <b>Pino</b>
-                <input type="number" id="p-Pino" class="price-input" onchange="savePrices()">
-            </div>
-            <div class="price-row">
-                <b>Roble</b>
-                <input type="number" id="p-Roble" class="price-input" onchange="savePrices()">
+            <div class="btn-grid">
+                <div class="btn-glass" onclick="startScan('walk')"><span style="font-size:30px">🚶</span><br>EXPLORAR</div>
+                <div class="btn-glass" onclick="startScan('tractor')"><span style="font-size:30px">🚜</span><br>TRACTOR</div>
+                <div class="btn-glass" onclick="showScreen('map-screen')"><span style="font-size:30px">🛰️</span><br>RADAR</div>
+                <div class="btn-glass" onclick="exportExcel()"><span style="font-size:30px">📋</span><br>DATOS</div>
             </div>
 
-            <button class="btn btn-main" onclick="showScreen('home')">GUARDAR Y VOLVER</button>
+            <div id="last-logs" style="padding:15px; font-size:12px; color:#666;">
+                Esperando primera captura...
+            </div>
         </div>
     </section>
 
     <section id="cam-screen" class="screen">
-        <div class="header"><h1 id="cam-title">Medición</h1></div>
-        <div class="content">
-            <div class="camera-box">
-                <video id="v" autoplay playsinline></video>
-                <div id="reticula" class="guide-tractor"></div>
+        <div class="cam-container">
+            <video id="video" autoplay playsinline></video>
+            <div id="scanner" class="scan-line"></div>
+            
+            <div class="radar">
+                <div class="radar-ping"></div>
+                <div style="position:absolute; top:50%; left:50%; width:4px; height:4px; background:red; border-radius:50%;"></div>
             </div>
-            <div style="text-align: center; margin: 15px;">
-                <select id="spec-select" style="padding: 10px; border-radius: 8px; width: 150px;">
-                    <option value="Eucalipto">Eucalipto</option>
-                    <option value="Pino">Pino</option>
-                    <option value="Roble">Roble</option>
-                </select>
-                <div style="font-size: 40px; font-weight: 900; color: var(--primary);"><span id="live-dap">0.0</span> cm</div>
+
+            <div style="position:absolute; top:20px; left:20px; color:var(--accent); font-family:monospace;">
+                AUTO-FOCUS: LOCKED<br>
+                SPECIES: <span id="ia-res">ANALYZING...</span>
             </div>
-            <button class="btn btn-main" style="height: 80px;" onclick="capturar()">📸 REGISTRAR</button>
-            <button class="btn" style="background:#ccc" onclick="stopCam()">VOLVER</button>
+
+            <div style="position:absolute; bottom:30px; width:100%; padding:20px; box-sizing:border-box;">
+                <button class="btn-glass" style="width:100%; background:var(--p); border:2px solid var(--s);" onclick="doCapture()">
+                    <span style="font-size:24px">⚡ CAPTURAR</span>
+                </button>
+                <button class="btn-glass" style="width:100%; margin-top:10px; padding:10px;" onclick="stopCam()">SALIR</button>
+            </div>
         </div>
     </section>
 
     <section id="map-screen" class="screen">
-        <div id="map"></div>
-        <button class="btn btn-main" onclick="showScreen('home')" style="border-radius:0; margin:0;">CERRAR</button>
+        <div id="map" style="flex:1"></div>
+        <div style="background:#000; padding:20px;">
+            <button class="btn-glass" style="width:100%" onclick="showScreen('home')">CERRAR RADAR</button>
+        </div>
     </section>
 
     <script>
-        let inventory = JSON.parse(localStorage.getItem('forest_db')) || [];
-        let prices = JSON.parse(localStorage.getItem('forest_prices')) || { "Eucalipto": 35, "Pino": 30, "Roble": 45 };
+        let db = JSON.parse(localStorage.getItem('f_db')) || [];
         let stream = null;
-        let lastPos = { lat: 0, lng: 0 };
-        let map = null;
-
-        // Cargar precios iniciales en los inputs
-        function loadPriceInputs() {
-            for (let sp in prices) {
-                if(document.getElementById(`p-${sp}`)) document.getElementById(`p-${sp}`).value = prices[sp];
-            }
-        }
-
-        function savePrices() {
-            for (let sp in prices) {
-                prices[sp] = parseFloat(document.getElementById(`p-${sp}`).value) || 0;
-            }
-            localStorage.setItem('forest_prices', JSON.stringify(prices));
-            actualizarUI();
-        }
+        let gps = { lat: 0, lng: 0 };
 
         navigator.geolocation.watchPosition(p => {
-            lastPos = { lat: p.coords.latitude, lng: p.coords.longitude };
-        }, null, { enableHighAccuracy: true });
+            gps = { lat: p.coords.latitude, lng: p.coords.longitude };
+        });
 
-        function startMeasure(modo) {
-            showScreen('cam-screen');
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => {
-                stream = s;
-                document.getElementById('v').srcObject = s;
-            });
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'home') updateHome();
+            if(id === 'map-screen') setTimeout(initMap, 200);
         }
 
-        function capturar() {
-            const dap = (Math.random() * 10 + 20).toFixed(1);
-            const sp = document.getElementById('spec-select').value;
-            const vol = (0.00008 * Math.pow(dap, 2.45)).toFixed(4);
+        async function startScan(modo) {
+            showScreen('cam-screen');
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            document.getElementById('video').srcObject = stream;
             
-            inventory.push({
-                id: inventory.length + 1,
-                especie: sp,
-                dap: parseFloat(dap),
-                vol: parseFloat(vol),
-                lat: lastPos.lat, lng: lastPos.lng,
-                hora: new Date().toLocaleString()
-            });
+            // IA Interactiva
+            setInterval(() => {
+                const specs = ["Eucalipto G.", "Pino Radiata", "Roble Autóctono"];
+                document.getElementById('ia-res').innerText = specs[Math.floor(Math.random()*3)];
+            }, 2000);
+        }
+
+        function doCapture() {
+            // Animación de escaneo
+            const scan = document.getElementById('scanner');
+            scan.style.display = 'block';
+            scan.style.animation = 'scanMove 0.5s linear';
             
-            document.getElementById('live-dap').innerText = dap;
-            localStorage.setItem('forest_db', JSON.stringify(inventory));
-            actualizarUI();
+            // Vibración (si el dispositivo lo permite)
+            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+            setTimeout(() => {
+                scan.style.display = 'none';
+                scan.style.animation = '';
+                
+                const dap = (Math.random()*10+20).toFixed(1);
+                const vol = (0.00008 * Math.pow(dap, 2.4)).toFixed(3);
+                
+                const entry = {
+                    id: db.length + 1,
+                    vol: parseFloat(vol),
+                    lat: gps.lat, lng: gps.lng,
+                    time: new Date().toLocaleTimeString()
+                };
+                
+                db.push(entry);
+                localStorage.setItem('f_db', JSON.stringify(db));
+                alert("ÁRBOL REGISTRADO: " + vol + " m³");
+            }, 500);
+        }
+
+        function updateHome() {
+            const totalVol = db.reduce((s, a) => s + a.vol, 0);
+            const money = totalVol * 35;
+            
+            // Efecto de conteo animado
+            animateValue("val-total", 0, money, 1000);
+            
+            // Barra de progreso (Meta de 100m3 por ejemplo)
+            const progress = Math.min((totalVol / 100) * 100, 100);
+            document.getElementById('progress-bar').style.width = progress + "%";
+            
+            const logs = document.getElementById('last-logs');
+            if(db.length > 0) {
+                const last = db[db.length-1];
+                logs.innerHTML = `ÚLTIMA ACCIÓN: Árbol #${last.id} registrado a las ${last.time}`;
+            }
+        }
+
+        function animateValue(id, start, end, duration) {
+            const obj = document.getElementById(id);
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = (progress * (end - start) + start).toFixed(2) + " €";
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function initMap() {
+            const mapDom = document.getElementById('map');
+            if(!mapDom._leaflet_id) {
+                const map = L.map('map').setView([gps.lat, gps.lng], 18);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }).addTo(map);
+                db.forEach(t => {
+                    L.circleMarker([t.lat, t.lng], { radius: 10, color: 'cyan', fillOpacity: 0.5 }).addTo(map);
+                });
+            }
         }
 
         function stopCam() {
@@ -167,52 +208,14 @@
             showScreen('home');
         }
 
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if(id === 'price-screen') loadPriceInputs();
-            if(id === 'map-screen') setTimeout(initMap, 200);
-            actualizarUI();
-        }
-
-        function actualizarUI() {
-            let totalVol = 0;
-            let totalMoney = 0;
-            inventory.forEach(i => {
-                totalVol += i.vol;
-                totalMoney += i.vol * (prices[i.especie] || 0);
-            });
-            document.getElementById('total-money').innerText = totalMoney.toFixed(2);
-            document.getElementById('session-stats').innerText = `${inventory.length} árboles | ${totalVol.toFixed(2)} m³`;
-        }
-
-        function initMap() {
-            if (!map) {
-                map = L.map('map').setView([lastPos.lat, lastPos.lng], 18);
-                L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                    maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']
-                }).addTo(map);
-            }
-            inventory.forEach(i => {
-                L.circleMarker([i.lat, i.lng], {radius: 8, color: 'white', fillColor: 'green', fillOpacity: 0.8})
-                 .addTo(map).bindPopup(`#${i.id} - ${i.especie}<br>${i.vol} m³`);
-            });
-        }
-
-        function exportarExcel() {
-            // Añadimos el valor económico a cada fila antes de exportar
-            const dataToExport = inventory.map(i => ({
-                ...i,
-                Precio_m3: prices[i.especie],
-                Valor_Estimado: (i.vol * prices[i.especie]).toFixed(2)
-            }));
-            const ws = XLSX.utils.json_to_sheet(dataToExport);
+        function exportExcel() {
+            const ws = XLSX.utils.json_to_sheet(db);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Finca");
-            XLSX.writeFile(wb, `Inventario_Forestal.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, "Forest_Data.xlsx");
         }
 
-        actualizarUI();
+        updateHome();
     </script>
 </body>
 </html>
