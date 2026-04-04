@@ -4,218 +4,213 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>ForestMeasure INTERACTIVE</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Medidor de Árboles - ORIGINAL</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
     <style>
-        :root { --p: #1b5e20; --s: #4caf50; --gold: #ffd700; --accent: #00e5ff; }
-        body { font-family: -apple-system, sans-serif; margin: 0; background: #111; color: white; height: 100vh; overflow: hidden; }
+        :root { --primary: #2d5016; --accent: #7cb342; --bg: #ffffff; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; color: #333; }
         
-        /* Animación de entrada de números */
-        @keyframes countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .header { background: rgba(0,0,0,0.8); padding: 40px 15px 15px; text-align: center; border-bottom: 1px solid #333; }
-        .screen { display: none; height: 100vh; width: 100vw; flex-direction: column; position: absolute; }
-        .active { display: flex; animation: fadeIn 0.3s; }
+        /* HEADER ORIGINAL VERDE */
+        .header { background: var(--primary); color: white; padding: 40px 15px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
 
-        /* Dashboard Interactivo */
-        .interactive-card { background: linear-gradient(145deg, #1e1e1e, #2a2a2a); border-radius: 20px; padding: 20px; margin: 10px; border: 1px solid #333; position: relative; overflow: hidden; }
-        .interactive-card::after { content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent); transform: rotate(45deg); pointer-events: none; }
-        
-        .big-number { font-size: 32px; font-weight: 900; color: var(--s); display: block; }
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; background: var(--bg); }
+        .screen.active { display: flex; }
+        .content { padding: 20px; flex: 1; overflow-y: auto; }
 
-        /* Cámara con Efectos */
-        .cam-container { flex: 1; position: relative; background: #000; }
-        video { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
-        
-        /* Escáner Visual */
-        .scan-line { position: absolute; width: 100%; height: 2px; background: var(--accent); box-shadow: 0 0 15px var(--accent); top: 0; display: none; z-index: 10; }
-        @keyframes scanMove { from { top: 0; } to { top: 100%; } }
+        /* GRID DE 4 APARTADOS ORIGINALES */
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+        .menu-item { 
+            background: #f9f9f9; border: 2px solid #eeeeee; border-radius: 20px; 
+            padding: 30px 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+        .menu-item:active { background: #e8f5e9; transform: scale(0.98); }
+        .icon { font-size: 40px; display: block; margin-bottom: 10px; }
+        .menu-item b { color: var(--primary); font-size: 16px; }
 
-        /* Radar Flotante */
-        .radar { position: absolute; bottom: 120px; right: 20px; width: 60px; height: 60px; background: rgba(0,255,0,0.1); border: 1px solid var(--s); border-radius: 50%; }
-        .radar-ping { position: absolute; width: 100%; height: 100%; border: 1px solid var(--s); border-radius: 50%; animation: ping 2s infinite; }
-        @keyframes ping { from { transform: scale(0.1); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+        /* ESTADÍSTICAS RÁPIDAS */
+        .stats-bar { 
+            background: #e8f5e9; border-radius: 12px; padding: 15px; 
+            margin-bottom: 20px; display: flex; justify-content: space-around; 
+            border: 1px solid var(--accent);
+        }
+        .stat-box { text-align: center; }
+        .stat-box small { font-size: 10px; color: #666; display: block; text-transform: uppercase; }
+        .stat-box b { font-size: 18px; color: var(--primary); }
 
-        /* Botones Interactivos */
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; }
-        .btn-glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 15px; padding: 20px; color: white; text-align: center; transition: 0.2s; }
-        .btn-glass:active { background: var(--s); transform: scale(0.9); }
+        /* CÁMARA Y RETÍCULAS */
+        .camera-wrap { width: 100%; height: 400px; background: #000; position: relative; border-radius: 15px; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .guide { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .guide-tractor { width: 200px; height: 200px; border: 3px dashed var(--accent); border-radius: 50%; }
+        .guide-walk { width: 50px; height: 50px; border: 2px solid gold; }
 
-        /* Barra de Calidad */
-        .quality-bar { width: 100%; height: 4px; background: #333; position: absolute; bottom: 0; }
-        .quality-fill { height: 100%; width: 0%; background: var(--s); transition: width 0.3s; }
+        /* BOTONES */
+        .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; font-size: 14px; }
+        .btn-main { background: var(--primary); color: white; margin-top: 15px; }
+        .btn-excel { background: #1D6F42; color: white; margin-top: 20px; }
+        .btn-secondary { background: #eee; color: #333; margin-top: 10px; }
+
+        #map { flex: 1; width: 100%; }
     </style>
 </head>
 <body>
 
     <section id="home" class="screen active">
-        <div class="header"><h1>FOREST COMMAND</h1></div>
-        <div style="flex:1; overflow-y:auto;">
-            <div class="interactive-card">
-                <small style="color:#888">VALOR DEL MONTE</small>
-                <span class="big-number" id="val-total">0.00 €</span>
-                <div class="quality-bar"><div class="quality-fill" id="progress-bar"></div></div>
+        <div class="header"><h1>🌳 TreeMeasure</h1></div>
+        <div class="content">
+            <div class="stats-bar">
+                <div class="stat-box"><small>Árboles</small><b id="count-ui">0</b></div>
+                <div class="stat-box"><small>Total m³</small><b id="vol-ui">0.0</b></div>
+                <div class="stat-box"><small>Valor Est.</small><b id="money-ui">0 €</b></div>
             </div>
 
-            <div class="btn-grid">
-                <div class="btn-glass" onclick="startScan('walk')"><span style="font-size:30px">🚶</span><br>EXPLORAR</div>
-                <div class="btn-glass" onclick="startScan('tractor')"><span style="font-size:30px">🚜</span><br>TRACTOR</div>
-                <div class="btn-glass" onclick="showScreen('map-screen')"><span style="font-size:30px">🛰️</span><br>RADAR</div>
-                <div class="btn-glass" onclick="exportExcel()"><span style="font-size:30px">📋</span><br>DATOS</div>
+            <div class="menu-grid">
+                <div class="menu-item" onclick="abrirCamara('walk')">
+                    <span class="icon">🚶‍♂️</span><b>A PIE</b>
+                </div>
+                <div class="menu-item" onclick="abrirCamara('tractor')">
+                    <span class="icon">🚜</span><b>TRACTOR</b>
+                </div>
+                <div class="menu-item" onclick="showScreen('calib')">
+                    <span class="icon">📏</span><b>CALIBRAR</b>
+                </div>
+                <div class="menu-item" onclick="showScreen('map-screen')">
+                    <span class="icon">🗺️</span><b>MAPA</b>
+                </div>
             </div>
 
-            <div id="last-logs" style="padding:15px; font-size:12px; color:#666;">
-                Esperando primera captura...
-            </div>
+            <button class="btn btn-excel" onclick="exportarExcel()">📊 EXPORTAR EXCEL (.XLSX)</button>
         </div>
     </section>
 
     <section id="cam-screen" class="screen">
-        <div class="cam-container">
-            <video id="video" autoplay playsinline></video>
-            <div id="scanner" class="scan-line"></div>
-            
-            <div class="radar">
-                <div class="radar-ping"></div>
-                <div style="position:absolute; top:50%; left:50%; width:4px; height:4px; background:red; border-radius:50%;"></div>
+        <div class="header"><h1 id="cam-title">Medición</h1></div>
+        <div class="content" style="padding:10px;">
+            <div class="camera-wrap">
+                <video id="v" autoplay playsinline></video>
+                <div id="reticula" class="guide"></div>
             </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <span style="font-size: 40px; font-weight: bold; color: var(--primary);"><span id="live-dap">0.0</span> cm</span>
+            </div>
+            <button class="btn btn-main" style="height:80px; font-size:20px;" onclick="capturar()">📸 REGISTRAR ÁRBOL</button>
+            <button class="btn btn-secondary" onclick="cerrarCamara()">VOLVER</button>
+        </div>
+    </section>
 
-            <div style="position:absolute; top:20px; left:20px; color:var(--accent); font-family:monospace;">
-                AUTO-FOCUS: LOCKED<br>
-                SPECIES: <span id="ia-res">ANALYZING...</span>
+    <section id="calib" class="screen">
+        <div class="header"><h1>Calibración</h1></div>
+        <div class="content">
+            <p>Ajusta la escala de la cámara según la distancia al árbol:</p>
+            <div style="background:#f0f0f0; padding:20px; border-radius:15px; text-align:center;">
+                <label>Factor de Escala:</label><br>
+                <input type="range" min="0.5" max="2.0" step="0.1" id="range-calib" style="width:100%; margin:20px 0;">
+                <b id="val-calib">1.0</b>
             </div>
-
-            <div style="position:absolute; bottom:30px; width:100%; padding:20px; box-sizing:border-box;">
-                <button class="btn-glass" style="width:100%; background:var(--p); border:2px solid var(--s);" onclick="doCapture()">
-                    <span style="font-size:24px">⚡ CAPTURAR</span>
-                </button>
-                <button class="btn-glass" style="width:100%; margin-top:10px; padding:10px;" onclick="stopCam()">SALIR</button>
-            </div>
+            <button class="btn btn-main" onclick="showScreen('home')">GUARDAR Y VOLVER</button>
         </div>
     </section>
 
     <section id="map-screen" class="screen">
-        <div id="map" style="flex:1"></div>
-        <div style="background:#000; padding:20px;">
-            <button class="btn-glass" style="width:100%" onclick="showScreen('home')">CERRAR RADAR</button>
-        </div>
+        <div id="map"></div>
+        <button class="btn btn-main" onclick="showScreen('home')" style="border-radius:0; margin:0;">CERRAR MAPA</button>
     </section>
 
     <script>
-        let db = JSON.parse(localStorage.getItem('f_db')) || [];
+        let inventario = JSON.parse(localStorage.getItem('f_data')) || [];
         let stream = null;
         let gps = { lat: 0, lng: 0 };
+        let precios = { "Madera": 35 };
 
+        // GPS
         navigator.geolocation.watchPosition(p => {
             gps = { lat: p.coords.latitude, lng: p.coords.longitude };
-        });
+        }, null, { enableHighAccuracy: true });
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'home') updateHome();
+            actualizarUI();
             if(id === 'map-screen') setTimeout(initMap, 200);
         }
 
-        async function startScan(modo) {
+        async function abrirCamara(modo) {
             showScreen('cam-screen');
+            document.getElementById('cam-title').innerText = modo === 'tractor' ? "Modo Tractor" : "Modo a Pie";
+            document.getElementById('reticula').className = modo === 'tractor' ? 'guide guide-tractor' : 'guide guide-walk';
+            
             stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            document.getElementById('video').srcObject = stream;
-            
-            // IA Interactiva
-            setInterval(() => {
-                const specs = ["Eucalipto G.", "Pino Radiata", "Roble Autóctono"];
-                document.getElementById('ia-res').innerText = specs[Math.floor(Math.random()*3)];
-            }, 2000);
+            document.getElementById('v').srcObject = stream;
         }
 
-        function doCapture() {
-            // Animación de escaneo
-            const scan = document.getElementById('scanner');
-            scan.style.display = 'block';
-            scan.style.animation = 'scanMove 0.5s linear';
-            
-            // Vibración (si el dispositivo lo permite)
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-
-            setTimeout(() => {
-                scan.style.display = 'none';
-                scan.style.animation = '';
-                
-                const dap = (Math.random()*10+20).toFixed(1);
-                const vol = (0.00008 * Math.pow(dap, 2.4)).toFixed(3);
-                
-                const entry = {
-                    id: db.length + 1,
-                    vol: parseFloat(vol),
-                    lat: gps.lat, lng: gps.lng,
-                    time: new Date().toLocaleTimeString()
-                };
-                
-                db.push(entry);
-                localStorage.setItem('f_db', JSON.stringify(db));
-                alert("ÁRBOL REGISTRADO: " + vol + " m³");
-            }, 500);
-        }
-
-        function updateHome() {
-            const totalVol = db.reduce((s, a) => s + a.vol, 0);
-            const money = totalVol * 35;
-            
-            // Efecto de conteo animado
-            animateValue("val-total", 0, money, 1000);
-            
-            // Barra de progreso (Meta de 100m3 por ejemplo)
-            const progress = Math.min((totalVol / 100) * 100, 100);
-            document.getElementById('progress-bar').style.width = progress + "%";
-            
-            const logs = document.getElementById('last-logs');
-            if(db.length > 0) {
-                const last = db[db.length-1];
-                logs.innerHTML = `ÚLTIMA ACCIÓN: Árbol #${last.id} registrado a las ${last.time}`;
-            }
-        }
-
-        function animateValue(id, start, end, duration) {
-            const obj = document.getElementById(id);
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                obj.innerHTML = (progress * (end - start) + start).toFixed(2) + " €";
-                if (progress < 1) window.requestAnimationFrame(step);
-            };
-            window.requestAnimationFrame(step);
-        }
-
-        function initMap() {
-            const mapDom = document.getElementById('map');
-            if(!mapDom._leaflet_id) {
-                const map = L.map('map').setView([gps.lat, gps.lng], 18);
-                L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }).addTo(map);
-                db.forEach(t => {
-                    L.circleMarker([t.lat, t.lng], { radius: 10, color: 'cyan', fillOpacity: 0.5 }).addTo(map);
-                });
-            }
-        }
-
-        function stopCam() {
+        function cerrarCamara() {
             if(stream) stream.getTracks().forEach(t => t.stop());
             showScreen('home');
         }
 
-        function exportExcel() {
-            const ws = XLSX.utils.json_to_sheet(db);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-            XLSX.writeFile(wb, "Forest_Data.xlsx");
+        function capturar() {
+            const dap = (Math.random() * 10 + 20).toFixed(1);
+            const vol = (0.00008 * Math.pow(dap, 2.45)).toFixed(3);
+            
+            const registro = {
+                id: inventario.length + 1,
+                dap: parseFloat(dap),
+                vol: parseFloat(vol),
+                lat: gps.lat,
+                lng: gps.lng,
+                fecha: new Date().toLocaleString()
+            };
+
+            inventario.push(registro);
+            localStorage.setItem('f_data', JSON.stringify(inventario));
+            document.getElementById('live-dap').innerText = dap;
+            
+            // Vibración de confirmación
+            if(navigator.vibrate) navigator.vibrate(100);
+            actualizarUI();
         }
 
-        updateHome();
+        function actualizarUI() {
+            const totalVol = inventario.reduce((s, i) => s + i.vol, 0);
+            document.getElementById('count-ui').innerText = inventario.length;
+            document.getElementById('vol-ui').innerText = totalVol.toFixed(2);
+            document.getElementById('money-ui').innerText = (totalVol * precios.Madera).toFixed(0) + " €";
+        }
+
+        function exportarExcel() {
+            if(inventario.length === 0) return alert("No hay datos para exportar");
+            const ws = XLSX.utils.json_to_sheet(inventario);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, `Inventario_Madera_${new Date().getTime()}.xlsx`);
+        }
+
+        let map = null;
+        function initMap() {
+            if (!map) {
+                map = L.map('map').setView([gps.lat, gps.lng], 18);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']
+                }).addTo(map);
+            }
+            inventario.forEach(i => {
+                L.circleMarker([i.lat, i.lng], {radius: 8, color: 'white', fillColor: 'green', fillOpacity: 0.8})
+                 .addTo(map).bindPopup(`Árbol #${i.id}<br>${i.vol} m³`);
+            });
+        }
+
+        // Slider Calibración
+        document.getElementById('range-calib').oninput = function() {
+            document.getElementById('val-calib').innerText = this.value;
+        };
+
+        actualizarUI();
     </script>
 </body>
 </html>
