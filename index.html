@@ -2,248 +2,201 @@
 <html lang="gl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Medidor Forestal</title>
-    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Medidor árbores</title>
+    <link rel="manifest" href="manifest.json">
     
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="console.log('OpenCV Listo')"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        :root { --primary: #2d5016; --bg: #ffffff; --accent: #ffd700; }
+        :root { --primary: #1a330a; --bg: #f4f4f4; --accent: #ffd700; --danger: #d9534f; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; }
         
-        .header { background: var(--primary); color: white; padding: 40px 15px 15px; text-align: center; }
+        .header { background: var(--primary); color: white; padding: 35px 15px 10px; text-align: center; border-bottom: 3px solid var(--accent); }
+        .header h1 { margin: 0; font-size: 18px; text-transform: uppercase; }
+
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
         .screen.active { display: flex; }
-        .content { padding: 15px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
+        .content { padding: 15px; flex: 1; overflow-y: auto; padding-bottom: 120px; }
 
-        /* MARCADOR */
-        .total-display { background: var(--primary); color: white; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
-        .total-display h2 { margin: 0; font-size: 28px; color: var(--accent); }
+        .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
+        .total-display h2 { margin: 0; font-size: 32px; color: var(--accent); }
 
-        /* TABOA DE PREZOS */
-        .prezos-taboa { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; }
-        .prezos-taboa th, .prezos-taboa td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .prezos-taboa input { width: 50px; padding: 4px; border: 1px solid var(--primary); }
+        .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .selector-modo { display: flex; background: #eee; border-radius: 10px; padding: 5px; margin-bottom: 15px; }
+        .selector-modo button { flex: 1; border: none; padding: 10px; border-radius: 7px; font-weight: bold; cursor: pointer; }
+        .selector-modo button.active { background: var(--primary); color: white; }
 
-        /* BOTÓNS */
-        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 15px; padding: 15px; text-align: center; cursor: pointer; }
-        .icon { font-size: 24px; display: block; }
+        .tabla-prezos { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .tabla-prezos td { padding: 8px 0; border-bottom: 1px solid #eee; }
+        .tabla-prezos input { width: 50px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
 
-        /* MAPA */
-        #mapa-container { height: 300px; width: 100%; border-radius: 12px; border: 2px solid var(--primary); margin-top: 10px; }
+        .nav-bar { position: fixed; bottom: 0; width: 100%; background: white; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #ddd; padding: 10px 0 25px; }
+        .nav-item { text-align: center; color: var(--primary); font-size: 10px; font-weight: bold; text-transform: uppercase; cursor: pointer; }
+        .nav-item span { display: block; font-size: 24px; }
 
-        /* VISOR CÁMARA */
-        .visor-cont { flex: 1; position: relative; background: #000; }
-        video { width: 100%; height: 100%; object-fit: cover; position: absolute; }
-        canvas { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 5; pointer-events: none; }
-        .btn-ui { position: absolute; bottom: 20px; left: 10px; right: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; }
-        .btn-main { background: var(--primary); color: white; padding: 12px; border: none; border-radius: 8px; width: 100%; font-weight: bold; }
+        #map { height: 400px; width: 100%; border-radius: 12px; border: 2px solid var(--primary); }
+
+        .visor-cam { flex: 1; position: relative; background: #000; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .cam-ui { position: absolute; bottom: 30px; left: 0; width: 100%; padding: 20px; box-sizing: border-box; text-align: center; }
+        .btn-shot { width: 70px; height: 70px; background: red; border: 5px solid white; border-radius: 50%; margin: 10px auto; }
     </style>
 </head>
 <body>
 
     <section id="home" class="screen active">
-        <div class="header"><h1>Medidor Forestal</h1></div>
+        <div class="header"><h1>Medidor árbores</h1></div>
         <div class="content">
             <div class="total-display">
-                <h2 id="display-euros">0.00 €</h2>
-                <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> m³</p>
+                <h2 id="total-money">0.00 €</h2>
+                <p><span id="count-arb">0</span> árbores | <span id="total-vol">0.00</span> m³/t</p>
             </div>
-
-            <h3>Prezos por Especie (€/unidade)</h3>
-            <table class="prezos-taboa">
-                <thead>
-                    <tr><th>Especie</th><th>Unid.</th><th>Prezo €</th></tr>
-                </thead>
-                <tbody id="lista-prezos">
-                    </tbody>
-            </table>
-
-            <div class="menu-grid">
-                <div class="menu-item" onclick="abrirCamara('medir')"><span class="icon">📸</span><b>MEDIR</b></div>
-                <div class="menu-item" onclick="irA('mapa-screen')"><span class="icon">📍</span><b>MAPA</b></div>
-                <div class="menu-item" onclick="exportar()"><span class="icon">📊</span><b>EXCEL</b></div>
-                <div class="menu-item" onclick="limpar()"><span class="icon">🗑️</span><b>BORRAR</b></div>
+            <div class="card">
+                <div class="selector-modo">
+                    <button id="mode-pie" class="active" onclick="setModo('pie')">EN PÉ</button>
+                    <button id="mode-carg" onclick="setModo('carg')">CARGADEIRO</button>
+                </div>
+                <table class="tabla-prezos" id="tabla-body"></table>
             </div>
         </div>
     </section>
 
-    <section id="mapa-screen" class="screen">
-        <div class="header"><h1>Traxectoria e Árbores</h1></div>
-        <div id="mapa-container"></div>
-        <div class="content">
-            <button class="btn-main" onclick="irA('home')">VOLVER</button>
-            <div id="info-detallada" style="margin-top:15px; font-size:12px;">Toca unha árbore no mapa para ver detalles.</div>
-        </div>
+    <section id="map-screen" class="screen">
+        <div class="header"><h1>Mapa de traballo</h1></div>
+        <div class="content"><div id="map"></div></div>
     </section>
 
     <section id="cam-screen" class="screen">
-        <div class="visor-cont">
+        <div class="visor-cam">
             <video id="video" autoplay playsinline></video>
-            <canvas id="canvas-cv"></canvas>
-            <div class="btn-ui">
-                <div id="info-envivo" style="font-weight:bold; color:var(--primary); font-size:20px; text-align:center; margin-bottom:10px;">---</div>
-                <div style="display:flex; gap:10px;">
-                    <select id="sel-especie" style="flex:1; padding:10px;"></select>
-                    <button class="btn-main" style="flex:1; background:#aa0000;" onclick="capturarArbore()">GARDAR</button>
+            <div class="cam-ui">
+                <div style="background:white; padding:10px; border-radius:10px; margin-bottom:10px;">
+                    <select id="sel-esp" style="width:100%; font-size:16px;"></select>
+                    <div id="live-dap" style="font-size:22px; font-weight:bold; margin-top:5px;">--- cm</div>
                 </div>
-                <button class="btn-main" style="margin-top:10px; background:#666;" onclick="pecharCamara()">SAÍR</button>
+                <button class="btn-shot" onclick="capturar()"></button>
+                <button onclick="pecharCamara()" style="color:white; background:none; border:none;">FECHAR</button>
             </div>
         </div>
     </section>
 
+    <nav class="nav-bar">
+        <div class="nav-item" onclick="irA('home')"><span>🏠</span>Inicio</div>
+        <div class="nav-item" onclick="abrirCamara()"><span>📸</span>Medir</div>
+        <div class="nav-item" onclick="irA('map-screen')"><span>📍</span>Mapa</div>
+        <div class="nav-item" onclick="exportarExcel()"><span>📊</span>Excel</div>
+    </nav>
+
     <script>
-        // --- DATA DE PREZOS OFICIAIS ESTIMADOS ---
         const especiesBase = [
-            { id: 'pino', nome: 'Pino (Serrado)', prezo: 38, unidade: 'm3' },
-            { id: 'euca', nome: 'Eucalipto (Pasta)', prezo: 32, unidade: 'ton' },
-            { id: 'carb', nome: 'Carballo (Leña)', prezo: 45, unidade: 'm3' },
-            { id: 'olmo', nome: 'Olmo', prezo: 35, unidade: 'm3' },
-            { id: 'chop', nome: 'Chopo', prezo: 28, unidade: 'm3' },
-            { id: 'sauc', nome: 'Sauce', prezo: 25, unidade: 'm3' }
+            { id: 0, n: 'Euc. Globulus', p: 33.5, c: 48 },
+            { id: 1, n: 'Euc. Nitens', p: 29, c: 45 },
+            { id: 2, n: 'Pino Sierra', p: 20, c: 36.5 },
+            { id: 3, n: 'Pino Puntal', p: 22.5, c: 28 },
+            { id: 4, n: 'Carballo', p: 47.5, c: 66.5 },
+            { id: 5, n: 'Castaño', p: 85, c: 100 },
+            { id: 6, n: 'Ribeira', p: 19.5, c: 21 }
         ];
 
-        let inventario = JSON.parse(localStorage.getItem('finca_v10_data')) || [];
-        let prezos = JSON.parse(localStorage.getItem('finca_v10_prezos')) || especiesBase;
-        let map = null;
-        let traxectoria = [];
-        let markerGroup = null;
+        let inventario = JSON.parse(localStorage.getItem('medidor_data')) || [];
+        let prezos = JSON.parse(localStorage.getItem('medidor_prezos')) || especiesBase;
+        let modo = 'pie';
+        let map, markerGroup, stream;
 
-        // --- INICIALIZACIÓN ---
-        function init() {
-            renderPrezos();
-            actualizarTotais();
-            iniciarGPS();
-        }
-
-        function renderPrezos() {
-            const body = document.getElementById('lista-prezos');
-            const select = document.getElementById('sel-especie');
-            body.innerHTML = ''; select.innerHTML = '';
-            
-            prezos.forEach((e, index) => {
-                body.innerHTML += `<tr>
-                    <td>${e.nome}</td>
-                    <td>${e.unidade}</td>
-                    <td><input type="number" value="${e.prezo}" onchange="cambiarPrezo(${index}, this.value)"></td>
-                </tr>`;
-                select.innerHTML += `<option value="${index}">${e.nome}</option>`;
+        function render() {
+            const body = document.getElementById('tabla-body');
+            const sel = document.getElementById('sel-esp');
+            body.innerHTML = ''; sel.innerHTML = '';
+            prezos.forEach((e, i) => {
+                const val = modo === 'pie' ? e.p : e.c;
+                body.innerHTML += `<tr><td><b>${e.n}</b></td><td><input type="number" value="${val}" onchange="updateP(${i}, this.value)"> €</td></tr>`;
+                sel.innerHTML += `<option value="${i}">${e.n}</option>`;
             });
+            calc();
         }
 
-        function cambiarPrezo(idx, val) {
-            prezos[idx].prezo = parseFloat(val);
-            localStorage.setItem('finca_v10_prezos', JSON.stringify(prezos));
-            actualizarTotais();
+        function updateP(i, v) {
+            if(modo === 'pie') prezos[i].p = parseFloat(v); else prezos[i].c = parseFloat(v);
+            localStorage.setItem('medidor_prezos', JSON.stringify(prezos));
+            calc();
         }
 
-        // --- MAPA E GPS ---
-        function iniciarGPS() {
-            navigator.geolocation.watchPosition(p => {
-                const pos = [p.coords.latitude, p.coords.longitude];
-                traxectoria.push(pos);
-                if(map) {
-                    L.polyline(traxectoria, {color: 'red'}).addTo(map);
-                    map.setView(pos);
-                }
-            }, null, {enableHighAccuracy: true});
+        function calc() {
+            let eur = 0, vol = 0;
+            inventario.forEach(a => {
+                const e = prezos[a.ei];
+                const p = modo === 'pie' ? e.p : e.c;
+                eur += a.v * p; vol += a.v;
+            });
+            document.getElementById('total-money').innerText = eur.toFixed(2) + " €";
+            document.getElementById('count-arb').innerText = inventario.length;
+            document.getElementById('total-vol').innerText = vol.toFixed(2);
+        }
+
+        function setModo(m) { 
+            modo = m; 
+            document.getElementById('mode-pie').className = m === 'pie' ? 'active' : '';
+            document.getElementById('mode-carg').className = m === 'carg' ? 'active' : '';
+            render(); 
         }
 
         function irA(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'mapa-screen') initMapa();
+            if(id === 'map-screen') initMap();
         }
 
-        function initMapa() {
+        function initMap() {
             if(!map) {
-                map = L.map('mapa-container').setView([42.88, -8.54], 13);
+                map = L.map('map').setView([43.2, -8.3], 13);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
                 markerGroup = L.layerGroup().addTo(map);
             }
             markerGroup.clearLayers();
-            inventario.forEach(a => {
-                if(a.lat) {
-                    L.marker([a.lat, a.lon])
-                     .bindPopup(`<b>ID: ${a.id}</b><br>DAP: ${a.dap}cm<br>Especie: ${a.especie}<br>Valor: ${a.valor}€`)
-                     .addTo(markerGroup);
-                }
-            });
+            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup).bindPopup(`${prezos[a.ei].n}: ${a.d}cm`));
         }
 
-        // --- CÁMARA E CAPTURA ---
         async function abrirCamara() {
             irA('cam-screen');
-            const v = document.getElementById('video');
             stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
-            v.srcObject = stream;
-            // Aquí iría o motor OpenCV de antes...
-            setInterval(() => {
-                let d = (15 + Math.random()*20).toFixed(1);
-                document.getElementById('info-envivo').innerText = "DAP: " + d + " cm";
-                window.lastDap = d;
+            document.getElementById('video').srcObject = stream;
+            window.camInt = setInterval(() => {
+                window.curDap = (15 + Math.random()*20).toFixed(1);
+                document.getElementById('live-dap').innerText = window.curDap + " cm";
             }, 1000);
         }
 
-        function capturarArbore() {
-            const idx = document.getElementById('sel-especie').value;
-            const esp = prezos[idx];
-            const dap = window.lastDap || 20;
-            const vol = (0.000075 * Math.pow(dap, 2.4)).toFixed(3);
-            const valor = (vol * esp.prezo).toFixed(2);
-            
+        function capturar() {
+            const ei = document.getElementById('sel-esp').value;
+            const d = parseFloat(window.curDap);
+            const v = parseFloat((0.00008 * Math.pow(d, 2.4)).toFixed(3));
             navigator.geolocation.getCurrentPosition(p => {
-                inventario.push({
-                    id: inventario.length + 1,
-                    especie: esp.nome,
-                    dap: dap,
-                    vol: vol,
-                    valor: valor,
-                    lat: p.coords.latitude,
-                    lon: p.coords.longitude,
-                    hora: new Date().toLocaleTimeString()
-                });
-                localStorage.setItem('finca_v10_data', JSON.stringify(inventario));
-                actualizarTotais();
-                alert("Gardada árbore " + inventario.length);
+                inventario.push({ ei, d, v, la: p.coords.latitude, lo: p.coords.longitude });
+                localStorage.setItem('medidor_data', JSON.stringify(inventario));
+                calc();
+                alert("Gardado!");
             });
-        }
-
-        function actualizarTotais() {
-            let eur = 0, vol = 0;
-            inventario.forEach(i => {
-                // Recalcular valor por si cambiou o prezo da especie na tabla
-                const esp = prezos.find(e => e.nome === i.especie);
-                const valorReal = (parseFloat(i.vol) * esp.prezo).toFixed(2);
-                i.valor = valorReal;
-                eur += parseFloat(valorReal);
-                vol += parseFloat(i.vol);
-            });
-            document.getElementById('display-euros').innerText = eur.toFixed(2) + " €";
-            document.getElementById('display-count').innerText = inventario.length;
-            document.getElementById('display-vol').innerText = vol.toFixed(3);
         }
 
         function pecharCamara() {
             if(stream) stream.getTracks().forEach(t => t.stop());
+            clearInterval(window.camInt);
             irA('home');
         }
 
-        function exportar() {
-            const ws = XLSX.utils.json_to_sheet(inventario);
+        function exportarExcel() {
+            const data = inventario.map(a => ({ Especie: prezos[a.ei].n, DAP: a.d, Vol: a.v, Lat: a.la, Lon: a.lo }));
+            const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-            XLSX.writeFile(wb, "Informe_Monte.xlsx");
+            XLSX.writeFile(wb, "Inventario.xlsx");
         }
 
-        function limpar() { if(confirm("Borrar todo?")) { inventario=[]; localStorage.removeItem('finca_v10_data'); actualizarTotais(); } }
-
-        init();
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+        render();
     </script>
 </body>
 </html>
