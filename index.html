@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Medidor Forestal Pro</title>
+    <title>Medidor Forestal</title>
     
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
@@ -18,28 +18,24 @@
         .screen.active { display: flex; }
         .content { padding: 20px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
 
-        /* MARCADOR DE CARTOS */
         .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
         .total-display h2 { margin: 0; font-size: 32px; color: var(--accent); }
 
-        /* CONFIGURACIÓN */
         .config-box { background: #f4f7f0; padding: 15px; border-radius: 12px; border: 2px solid #2d5016; margin-bottom: 20px; }
         .row { display: flex; gap: 10px; margin-bottom: 15px; }
         .col { flex: 1; }
         label { font-size: 11px; font-weight: bold; color: #444; display: block; margin-bottom: 5px; }
-        select, input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+        select, input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; background: white; }
 
-        /* BOTÓNS PRINCIPAIS (OS QUE QUERES) */
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 20px; padding: 25px 10px; text-align: center; cursor: pointer; }
         .menu-item:active { background: #eee; }
         .icon { font-size: 35px; display: block; margin-bottom: 10px; }
         .menu-item b { font-size: 16px; color: var(--primary); }
 
-        /* VISOR CÁMARA */
         .visor-cont { flex: 1; position: relative; background: #000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .linea { position: absolute; width: 50px; height: 80%; top: 10%; border-left: 5px solid red; cursor: pointer; z-index: 10; transform: translateX(-50%); background: rgba(255,0,0,0.1); }
+        .linea { position: absolute; width: 60px; height: 80%; top: 10%; border-left: 6px solid red; cursor: pointer; z-index: 10; transform: translateX(-50%); background: rgba(255,0,0,0.1); }
         .reticula { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 200px; border: 3px solid rgba(255,255,255,0.4); border-radius: 15px; pointer-events: none; }
         .reticula.scan { border-color: #00ff00; background: rgba(0,255,0,0.1); }
 
@@ -52,11 +48,11 @@
 <body>
 
     <section id="home" class="screen active">
-        <div class="header"><h1>Medidor Forestal Pro</h1></div>
+        <div class="header"><h1>Medidor Forestal</h1></div>
         <div class="content">
             
             <div class="total-display">
-                <p>VALOR TOTAL ESTIMADO</p>
+                <p>VALOR ACUMULADO</p>
                 <h2 id="display-euros">0.00 €</h2>
                 <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> <span id="lbl-uni">m³</span></p>
             </div>
@@ -65,15 +61,22 @@
                 <div class="row">
                     <div class="col">
                         <label>ESPECIE</label>
-                        <select id="tipo-madeira">
+                        <select id="tipo-madeira" onchange="cargarPrezoGardado()">
                             <option value="Pino">Pino</option>
                             <option value="Eucalipto">Eucalipto</option>
                             <option value="Carballo">Carballo</option>
+                            <option value="Olmo">Olmo</option>
+                            <option value="Chopo">Chopo</option>
+                            <option value="Sauce">Sauce</option>
+                            <option value="Castiñeiro">Castiñeiro</option>
+                            <option value="Bidueiro">Bidueiro</option>
+                            <option value="Freixo">Freixo</option>
+                            <option value="Outros">Outros</option>
                         </select>
                     </div>
                     <div class="col">
                         <label>UNIDADE</label>
-                        <select id="unidade" onchange="cambiarUnidade()">
+                        <select id="unidade" onchange="cargarPrezoGardado()">
                             <option value="m3">m³</option>
                             <option value="ton">tn</option>
                         </select>
@@ -82,7 +85,7 @@
                 <div class="row">
                     <div class="col">
                         <label>PREZO UNITARIO (€)</label>
-                        <input type="number" id="prezo-unidade" value="35">
+                        <input type="number" id="prezo-unidade" value="35" oninput="gardarPrezoActual()">
                     </div>
                 </div>
             </div>
@@ -97,10 +100,10 @@
             <div class="extra-stats">
                 <span>DAP Medio: <b id="stat-dap">0</b>cm</span>
                 <span>Máx: <b id="stat-max">0</b>cm</span>
-                <span onclick="toggleGPS()" style="color:blue; text-decoration:underline;">GPS: <b id="gps-status">OFF</b></span>
+                <span onclick="toggleGPS()" style="color:blue; cursor:pointer;">GPS: <b id="gps-status">OFF</b></span>
             </div>
             
-            <button onclick="limpar()" style="margin-top:20px; background:#aa0000; color:white; border:none; padding:12px; width:100%; border-radius:10px;">BORRAR TODO</button>
+            <button onclick="limpar()" style="margin-top:20px; background:#aa0000; color:white; border:none; padding:12px; width:100%; border-radius:10px;">BORRAR MEDICIÓN ACTUAL</button>
         </div>
     </section>
 
@@ -125,17 +128,32 @@
     </section>
 
     <script>
-        let inventario = JSON.parse(localStorage.getItem('madeira_data_v6')) || [];
-        let factorCalibracion = parseFloat(localStorage.getItem('madeira_factor_v6')) || 1.0;
+        // Rexistro de datos e prezos
+        let inventario = JSON.parse(localStorage.getItem('forest_v8_data')) || [];
+        let factorCalibracion = parseFloat(localStorage.getItem('forest_v8_factor')) || 1.0;
+        let prezosGardados = JSON.parse(localStorage.getItem('forest_v8_prezos')) || {};
+        
         let gpsActivo = false;
         let coords = { lat: "-", lon: "-" };
         let stream = null;
         let pL1 = 30, pL2 = 70;
         let modoActual = '';
 
-        function cambiarUnidade() {
-            document.getElementById('lbl-uni').innerText = document.getElementById('unidade').value === 'm3' ? 'm³' : 'tn';
+        function cargarPrezoGardado() {
+            let esp = document.getElementById('tipo-madeira').value;
+            let uni = document.getElementById('unidade').value;
+            let clave = esp + "_" + uni;
+            document.getElementById('prezo-unidade').value = prezosGardados[clave] || 35;
+            document.getElementById('lbl-uni').innerText = uni === 'm3' ? 'm³' : 'tn';
             actualizarMarcador();
+        }
+
+        function gardarPrezoActual() {
+            let esp = document.getElementById('tipo-madeira').value;
+            let uni = document.getElementById('unidade').value;
+            let val = document.getElementById('prezo-unidade').value;
+            prezosGardados[esp + "_" + uni] = val;
+            localStorage.setItem('forest_v8_prezos', JSON.stringify(prezosGardados));
         }
 
         function toggleGPS() {
@@ -153,18 +171,17 @@
             document.getElementById('cam-screen').classList.add('active');
             document.getElementById('calib-ui').style.display = modo === 'calib' ? 'block' : 'none';
             document.getElementById('medir-ui').style.display = modo === 'medir' ? 'block' : 'none';
-
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 document.getElementById('video').srcObject = stream;
                 if(modo === 'medir') motorMedicion();
-            } catch (err) { alert("Erro de cámara"); pecharCamara(); }
+            } catch (err) { alert("Erro cámara"); pecharCamara(); }
         }
 
         function pecharCamara() {
             if(modoActual === 'calib') {
                 factorCalibracion = 300 / Math.abs(pL2 - pL1);
-                localStorage.setItem('madeira_factor_v6', factorCalibracion);
+                localStorage.setItem('forest_v8_factor', factorCalibracion);
             }
             if(stream) stream.getTracks().forEach(t => t.stop());
             document.getElementById('cam-screen').classList.remove('active');
@@ -190,20 +207,17 @@
             const ret = document.getElementById('reticula');
             ret.classList.add('scan');
             let dap = ((15 + Math.random() * 20) * factorCalibracion / 10).toFixed(1);
-            let prezoUni = parseFloat(document.getElementById('prezo-unidade').value);
+            let pUni = parseFloat(document.getElementById('prezo-unidade').value);
             let vol = (0.000075 * Math.pow(dap, 2.4)).toFixed(3);
             
             inventario.push({
                 especie: document.getElementById('tipo-madeira').value,
-                dap: dap,
-                vol: vol,
-                valor: (vol * prezoUni).toFixed(2),
-                lat: coords.lat, lon: coords.lon,
-                hora: new Date().toLocaleTimeString()
+                dap: dap, vol: vol, valor: (vol * pUni).toFixed(2),
+                lat: coords.lat, lon: coords.lon, hora: new Date().toLocaleTimeString()
             });
 
-            document.getElementById('info-envivo').innerText = "+" + (vol * prezoUni).toFixed(2) + " €";
-            localStorage.setItem('madeira_data_v6', JSON.stringify(inventario));
+            document.getElementById('info-envivo').innerText = "+" + (vol * pUni).toFixed(2) + " €";
+            localStorage.setItem('forest_v8_data', JSON.stringify(inventario));
             setTimeout(() => { ret.classList.remove('scan'); }, 1000);
         }
 
@@ -225,13 +239,13 @@
         function exportar() {
             const ws = XLSX.utils.json_to_sheet(inventario);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Finca");
-            XLSX.writeFile(wb, "Inventario_Monte.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, "Informe_Monte.xlsx");
         }
 
-        function limpar() { if(confirm("Borrar todo?")) { inventario = []; localStorage.removeItem('madeira_data_v6'); actualizarMarcador(); } }
+        function limpar() { if(confirm("¿Borrar medición?")) { inventario = []; localStorage.removeItem('forest_v8_data'); actualizarMarcador(); } }
         
-        actualizarMarcador();
+        cargarPrezoGardado();
     </script>
 </body>
 </html>
