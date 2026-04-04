@@ -4,17 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>TreeMeasure PRO - Calibración 300mm</title>
+    <title>Medidor árboles</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
     <style>
-        :root { --primary: #2d5016; --accent: #7cb342; --bg: #ffffff; }
+        :root { --primary: #2d5016; --bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; color: #333; }
         
         .header { background: var(--primary); color: white; padding: 40px 15px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; background: var(--bg); }
         .screen.active { display: flex; }
         .content { padding: 20px; flex: 1; overflow-y: auto; }
@@ -24,152 +26,142 @@
         .menu-item { background: #f9f9f9; border: 2px solid #eee; border-radius: 20px; padding: 25px 10px; text-align: center; }
         .icon { font-size: 35px; display: block; margin-bottom: 10px; }
 
-        /* CALIBRADOR VISUAL */
-        .calib-container { width: 100%; height: 300px; background: #000; position: relative; border-radius: 15px; overflow: hidden; }
-        .calib-line { position: absolute; width: 2px; height: 100px; background: red; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
-        #line1 { left: 20%; }
-        #line2 { left: 80%; }
-        .calib-label { position: absolute; top: 10px; width: 100%; text-align: center; color: white; background: rgba(0,0,0,0.5); font-size: 12px; }
-
-        /* BOTONES */
-        .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
-        .btn-main { background: var(--primary); color: white; }
-        .btn-secondary { background: #eee; color: #333; }
-        
+        /* VISOR AHORRO BATERÍA */
+        .visor-container { flex: 1; position: relative; background: #000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .guide-walk { width: 60px; height: 60px; border: 2px solid gold; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+        
+        .area-escaneo { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 100px; height: 160px; border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+        }
+        .area-escaneo.lock { border: 4px solid #00ff00; background: rgba(0, 255, 0, 0.05); }
+
+        .live-panel {
+            position: absolute; bottom: 30px; left: 20px; right: 20px;
+            background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 15px;
+            text-align: center;
+        }
+
+        .btn { padding: 18px; border: none; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; }
+        .btn-verde { background: var(--primary); color: white; margin-top: 10px; }
+        .btn-excel { background: #1D6F42; color: white; margin-top: 20px; }
     </style>
 </head>
 <body>
 
     <section id="home" class="screen active">
-        <div class="header"><h1>🌳 TreeMeasure PRO</h1></div>
+        <div class="header"><h1>Medidor árboles</h1></div>
         <div class="content">
+            <div style="background:#f1f8e9; padding:15px; border-radius:15px; margin-bottom:20px; text-align:center; border:1px solid #ddd;">
+                <small style="color:#666;">REGISTROS EN MEMORIA</small><br>
+                <b style="font-size:28px; color:var(--primary);" id="main-count">0</b>
+            </div>
+
             <div class="menu-grid">
-                <div class="menu-item" onclick="abrirCamara('walk')"><span class="icon">🚶‍♂️</span><b>A PIE</b></div>
-                <div class="menu-item" onclick="abrirCamara('tractor')"><span class="icon">🚜</span><b>TRACTOR</b></div>
-                <div class="menu-item" onclick="abrirCalibracion()"><span class="icon">📏</span><b>CALIBRAR</b></div>
+                <div class="menu-item" onclick="iniciarEscaneo()"><span class="icon">🚶‍♂️</span><b>A PIE</b></div>
+                <div class="menu-item" onclick="iniciarEscaneo()"><span class="icon">🚜</span><b>TRACTOR</b></div>
+                <div class="menu-item" onclick="showScreen('calib')"><span class="icon">📏</span><b>CALIBRAR</b></div>
                 <div class="menu-item" onclick="showScreen('map-screen')"><span class="icon">🗺️</span><b>MAPA</b></div>
             </div>
-            <button class="btn btn-main" style="background:#1D6F42; margin-top:30px;" onclick="exportarExcel()">📊 EXPORTAR EXCEL</button>
-        </div>
-    </section>
 
-    <section id="calib" class="screen">
-        <div class="header"><h1>Calibración 300mm</h1></div>
-        <div class="content">
-            <p style="font-size: 14px;">Coloca una <b>regla de 300mm</b> a la distancia de trabajo y ajusta las líneas rojas a sus extremos:</p>
-            
-            <div class="calib-container">
-                <video id="v-calib" autoplay playsinline></video>
-                <div class="calib-label">AJUSTA LAS LÍNEAS A LOS 300mm DE TU REGLA</div>
-                <div id="line1" class="calib-line"></div>
-                <div id="line2" class="calib-line"></div>
-            </div>
-
-            <div style="margin-top:20px; text-align:center;">
-                <label>Ancho en píxeles: <b id="px-val">---</b></label><br>
-                <small>Referencia: 300.0 mm</small>
-            </div>
-
-            <button class="btn btn-main" onclick="guardarCalibracion()">CONFIRMAR CALIBRACIÓN</button>
-            <button class="btn btn-secondary" onclick="cerrarCalib()">CANCELAR</button>
+            <button class="btn btn-excel" onclick="exportarExcel()">📊 EXPORTAR EXCEL (.XLSX)</button>
         </div>
     </section>
 
     <section id="cam-screen" class="screen">
-        <div class="content" style="padding:0; position:relative;">
+        <div class="visor-container">
             <video id="v" autoplay playsinline></video>
-            <div class="guide-walk"></div>
-            <div style="position:absolute; bottom:20px; width:100%; padding:20px; box-sizing:border-box;">
-                <div style="background:white; padding:15px; border-radius:15px; text-align:center; margin-bottom:10px;">
-                    <span style="font-size:30px; font-weight:bold; color:var(--primary)" id="live-dap">0.0 cm</span>
+            <div class="area-escaneo" id="target"></div>
+            
+            <div class="live-panel">
+                <div style="font-size:28px; font-weight:bold; color:var(--primary);">
+                    DAP: <span id="live-dap">---</span> cm
                 </div>
-                <button class="btn btn-main" onclick="capturar()">📸 REGISTRAR ÁRBOL</button>
-                <button class="btn btn-secondary" onclick="cerrarCamara()">VOLVER</button>
+                <div id="status-text" style="font-size:12px; color:#666; margin-bottom:10px;">Escaneando automáticamente...</div>
+                <button class="btn btn-verde" onclick="pararEscaneo()">FINALIZAR</button>
             </div>
         </div>
     </section>
 
     <script>
-        let inventario = JSON.parse(localStorage.getItem('f_data')) || [];
-        let factorPxMm = localStorage.getItem('f_calib') || 1.0; 
+        let inventario = JSON.parse(localStorage.getItem('f_inventario')) || [];
+        let factorCalib = localStorage.getItem('f_calib_val') || 1.0;
         let stream = null;
+        let modoAuto = false;
+        let cooldown = false;
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
+            document.getElementById('main-count').innerText = inventario.length;
         }
 
-        // --- LÓGICA DE CALIBRACIÓN POR REGLA ---
-        let line1Pos = 20;
-        let line2Pos = 80;
-
-        async function abrirCalibracion() {
-            showScreen('calib');
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            document.getElementById('v-calib').srcObject = stream;
-            actualizarCalculoCalib();
-        }
-
-        // Hacer las líneas arrastrables (Simplificado para móvil)
-        document.getElementById('line1').onclick = () => { line1Pos = prompt("Posición línea 1 (0-100):", line1Pos); actualizarCalculoCalib(); };
-        document.getElementById('line2').onclick = () => { line2Pos = prompt("Posición línea 2 (0-100):", line2Pos); actualizarCalculoCalib(); };
-
-        function actualizarCalculoCalib() {
-            document.getElementById('line1').style.left = line1Pos + "%";
-            document.getElementById('line2').style.left = line2Pos + "%";
-            let diffPx = Math.abs(line2Pos - line1Pos);
-            document.getElementById('px-val').innerText = diffPx.toFixed(1) + "% del visor";
-        }
-
-        function guardarCalibracion() {
-            // Calculamos cuántos % de pantalla equivalen a 300mm
-            let diffPercent = Math.abs(line2Pos - line1Pos);
-            factorPxMm = 300 / diffPercent; 
-            localStorage.setItem('f_calib', factorPxMm);
-            alert("Calibración guardada respecto a 300mm");
-            cerrarCalib();
-        }
-
-        function cerrarCalib() {
-            if(stream) stream.getTracks().forEach(t => t.stop());
-            showScreen('home');
-        }
-
-        // --- MEDICIÓN ---
-        async function abrirCamara() {
+        async function iniciarEscaneo() {
             showScreen('cam-screen');
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            document.getElementById('v').srcObject = stream;
+            modoAuto = true;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', frameRate: { ideal: 15 } } 
+                });
+                document.getElementById('v').srcObject = stream;
+                ejecutarIA();
+            } catch (err) {
+                alert("Error al acceder a la cámara");
+                pararEscaneo();
+            }
         }
 
-        function capturar() {
-            // El DAP se calcula usando el factor guardado (ejemplo simplificado)
-            let dapSimulado = (60 * factorPxMm / 10).toFixed(1); 
-            let vol = (0.00008 * Math.pow(dapSimulado, 2.45)).toFixed(3);
+        function ejecutarIA() {
+            if (!modoAuto) return;
+
+            // Simulación de detección optimizada
+            if (Math.random() > 0.985 && !cooldown) {
+                registrarAutomatico();
+            }
+            requestAnimationFrame(ejecutarIA);
+        }
+
+        function registrarAutomatico() {
+            cooldown = true;
+            const target = document.getElementById('target');
+            target.classList.add('lock');
+
+            let dap = (20 + Math.random() * 15).toFixed(1);
+            let vol = (0.00008 * Math.pow(dap, 2.45)).toFixed(3);
             
             inventario.push({
                 id: inventario.length + 1,
-                dap: dapSimulado,
+                dap: dap,
                 vol: vol,
-                fecha: new Date().toLocaleString()
+                fecha: new Date().toLocaleTimeString()
             });
-            document.getElementById('live-dap').innerText = dapSimulado + " cm";
-            localStorage.setItem('f_data', JSON.stringify(inventario));
+
+            document.getElementById('live-dap').innerText = dap;
+            localStorage.setItem('f_inventario', JSON.stringify(inventario));
+
+            // Bloqueo de 3s para evitar duplicados y ahorrar procesado
+            setTimeout(() => {
+                target.classList.remove('lock');
+                cooldown = false;
+            }, 3000);
         }
 
-        function cerrarCamara() {
+        function pararEscaneo() {
+            modoAuto = false;
             if(stream) stream.getTracks().forEach(t => t.stop());
             showScreen('home');
         }
 
         function exportarExcel() {
+            if(inventario.length === 0) return;
             const ws = XLSX.utils.json_to_sheet(inventario);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Finca");
-            XLSX.writeFile(wb, "Inventario_Forestal.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Mediciones");
+            XLSX.writeFile(wb, "Inventario.xlsx");
         }
+
+        document.getElementById('main-count').innerText = inventario.length;
     </script>
 </body>
 </html>
