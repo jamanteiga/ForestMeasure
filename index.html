@@ -2,273 +2,307 @@
 <html lang="gl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Medidor árbores</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Medidor">
+    <meta name="theme-color" content="#2d5016">
+    <title>Medidor de árbores</title>
     <link rel="manifest" href="manifest.json">
-    
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="stylesheet" href="lib/leaflet.css">
     <style>
-        :root { --primary: #2d5016; --bg: #ffffff; --accent: #ffd700; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow: hidden; height: 100vh; color: #333; }
-        
-        .header { background: var(--primary); color: white; padding: 40px 15px 15px; text-align: center; }
-        .header h1 { margin: 0; font-size: 22px; }
+        :root { --primary:#2d5016; --bg:#f5f5f0; --accent:#ffd700; --danger:#d9534f; --ok:#28a745; --sat:max(env(safe-area-inset-top),14px); --sab:max(env(safe-area-inset-bottom),10px); }
+        * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        html, body { margin:0; height:100%; }
+        body { font-family:-apple-system,'Helvetica Neue',sans-serif; background:var(--bg); overflow:hidden; color:#222; touch-action:manipulation; }
+        input, select, textarea, button { font-family:inherit; font-size:16px; }
+        .screen { display:none; width:100%; height:100dvh; flex-direction:column; position:relative; }
+        .screen.active { display:flex; }
+        .header { background:var(--primary); color:white; padding:var(--sat) 15px 12px; text-align:center; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .header h1 { margin:0; font-size:19px; flex:1; }
+        .header .hb { background:rgba(255,255,255,.18); color:#fff; border:none; border-radius:10px; padding:8px 12px; font-size:14px; min-width:70px; }
+        .header .hb.vacio { visibility:hidden; }
+        .content { padding:16px; flex:1; overflow-y:auto; padding-bottom:calc(var(--sab) + 24px); -webkit-overflow-scrolling:touch; }
+        .mut { color:#777; font-size:12px; }
 
-        .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
-        .screen.active { display: flex; }
-        .content { padding: 20px; flex: 1; overflow-y: auto; padding-bottom: 40px; }
+        .marcador { background:var(--primary); color:white; padding:16px 15px; border-radius:14px; text-align:center; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+        .marcador h2 { margin:0 0 4px; font-size:34px; color:var(--accent); }
+        .marcador p { margin:0; font-size:13px; opacity:.9; }
+        .chip-parcela { text-align:center; font-size:13px; color:#555; margin-bottom:14px; }
+        .menu-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .menu-item { background:white; border:2px solid #ddd; border-radius:14px; padding:18px 8px 12px; text-align:center; cursor:pointer; }
+        .menu-item:active { transform:scale(.96); border-color:var(--primary); }
+        .menu-item.accent { border-color:var(--ok); background:#f0fff4; grid-column:span 2; }
+        .icon { font-size:30px; display:block; margin-bottom:5px; }
+        .menu-item b { font-size:11px; color:var(--primary); text-transform:uppercase; letter-spacing:.5px; }
 
-        /* MARCADOR */
-        .total-display { background: var(--primary); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
-        .total-display h2 { margin: 0; font-size: 32px; color: var(--accent); }
+        .btn { width:100%; padding:14px; border:none; border-radius:12px; font-weight:bold; font-size:15px; cursor:pointer; display:block; text-align:center; }
+        .btn:disabled { opacity:.45; }
+        .btn-primary { background:var(--primary); color:white; }
+        .btn-danger { background:var(--danger); color:white; }
+        .btn-sec { background:#e9e9e2; color:#333; }
+        .btn + .btn { margin-top:8px; }
+        .btn-mini { background:#eef3e8; color:var(--primary); border:1px solid #c9d8bb; border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; }
+        .btn-borrar { background:#ffecec; color:var(--danger); border:1px solid #f5b8b8; border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; }
 
-        /* CUADRÍCULA DE 6 BOTÓNS */
-        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .menu-item { background: #f9f9f9; border: 2px solid #ddd; border-radius: 15px; padding: 20px 5px; text-align: center; cursor: pointer; }
-        .icon { font-size: 30px; display: block; margin-bottom: 5px; }
-        .menu-item b { font-size: 12px; color: var(--primary); text-transform: uppercase; }
+        /* Foto */
+        .dark { background:#111; }
+        .topbar { background:var(--primary); color:#fff; padding:var(--sat) 10px 8px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+        .topbar b { flex:1; text-align:center; font-size:15px; }
+        .tb { background:rgba(255,255,255,.18); color:#fff; border:none; border-radius:8px; padding:7px 10px; font-size:14px; }
+        .tb.on { background:var(--accent); color:#222; }
+        #foto-wrap { flex:1; min-height:0; overflow:auto; display:flex; background:#000; position:relative; -webkit-overflow-scrolling:touch; }
+        #foto-inner { position:relative; margin:auto; flex:none; display:none; touch-action:pan-x pan-y; }
+        #foto-canvas { width:100%; height:100%; display:block; }
+        #foto-vacio { margin:auto; padding:22px; color:#ddd; font-size:14px; line-height:1.5; display:flex; flex-direction:column; gap:12px; max-width:420px; }
+        #foto-vacio ol { margin:0; padding-left:20px; }
+        #hline { position:absolute; left:0; right:0; height:1px; background:rgba(255,160,0,.55); pointer-events:none; }
+        .linea { position:absolute; top:0; bottom:0; width:30px; margin-left:-15px; touch-action:none; cursor:ew-resize; z-index:5; }
+        .linea::after { content:''; position:absolute; left:14px; top:0; bottom:0; width:2px; background:currentColor; box-shadow:0 0 4px #000; }
+        .linea.sel::after { width:3px; left:13.5px; }
+        .linea i { position:absolute; top:6px; left:50%; transform:translateX(-50%); font-style:normal; font-size:11px; font-weight:bold; color:#fff; background:currentColor; padding:1px 5px; border-radius:4px; }
+        .linea i b { color:#fff; }
+        .linea.ref { color:#2f8cff; }
+        .linea.tr { color:#2ee06a; }
+        .panel { background:#fff; padding:10px 12px calc(var(--sab) + 4px); border-radius:18px 18px 0 0; flex-shrink:0; }
+        .dap-live { font-size:30px; font-weight:bold; color:var(--primary); text-align:center; line-height:1.1; }
+        .det { font-size:12px; text-align:center; color:#555; margin:2px 0; }
+        .aviso { font-size:12px; text-align:center; color:#b35c00; min-height:15px; }
+        .fila { display:flex; gap:6px; margin:6px 0; align-items:center; }
+        .fila > * { flex:1; }
+        .chip { background:#eee; border:2px solid #ddd; border-radius:10px; padding:8px 4px; font-size:13px; font-weight:600; }
+        .chip.on { background:var(--primary); color:#fff; border-color:var(--primary); }
+        .chip.azul.on { background:#2f8cff; border-color:#2f8cff; }
+        .chip.verde.on { background:#1fb355; border-color:#1fb355; }
+        .snap { flex:1.4 !important; font-size:13px; display:flex; align-items:center; gap:6px; }
 
-        /* CALIBRACIÓN E CÁMARA */
-        .visor-cont { flex: 1; position: relative; background: #000; overflow: hidden; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* Liña de calibración */
-        #cal-line { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 200px; height: 4px; background: #007bff; border: 2px solid white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index: 5; display: none;
-        }
+        /* Formulario */
+        .campo { margin-bottom:12px; }
+        .campo label { display:block; font-size:12px; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
+        .campo input, .campo select, .campo textarea { width:100%; padding:11px; border:1px solid #ccc; border-radius:10px; background:#fff; }
+        .campo .dos { display:flex; gap:8px; }
+        .prev { background:#fff; border:2px solid var(--primary); border-radius:12px; padding:10px; margin-bottom:12px; }
+        .prev-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; text-align:center; margin-bottom:6px; }
+        .prev-grid b { display:block; font-size:15px; color:var(--primary); }
+        .prev-grid small { color:#777; font-size:11px; }
+        .prev-grid .hi { background:#fff8cc; border-radius:8px; }
+        #r-gps { font-size:12px; color:#555; margin:-4px 0 12px; }
 
-        .cam-ui { position: absolute; bottom: 20px; left: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; text-align: center; z-index: 10; }
-        
-        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        #map { flex: 1; width: 100%; }
+        /* Altura */
+        #alt-video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
+        .cruz { position:absolute; left:0; right:0; top:50%; height:2px; background:rgba(255,60,60,.85); z-index:3; }
+        .cruz::after { content:''; position:absolute; left:50%; top:-24px; width:2px; height:50px; background:rgba(255,60,60,.85); }
+        #alt-ang { position:absolute; top:calc(var(--sat) + 8px); left:50%; transform:translateX(-50%); background:rgba(0,0,0,.65); color:#fff; font-size:30px; font-weight:bold; padding:6px 18px; border-radius:20px; z-index:6; }
+        .alt-panel { position:absolute; left:0; right:0; bottom:0; background:rgba(255,255,255,.95); padding:12px 14px calc(var(--sab) + 4px); border-radius:18px 18px 0 0; z-index:6; }
+        .alt-panel p { margin:0 0 8px; font-size:13px; color:#444; }
+
+        /* Listas */
+        .item-rexistro { display:flex; justify-content:space-between; align-items:center; gap:8px; background:white; border-radius:10px; padding:10px 12px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+        .item-rexistro small { color:#777; }
+        .item-rexistro .acc { display:flex; gap:6px; flex-shrink:0; }
+        .resumo { width:100%; border-collapse:collapse; font-size:13px; background:#fff; border-radius:10px; overflow:hidden; }
+        .resumo th, .resumo td { padding:6px 5px; text-align:right; border-bottom:1px solid #eee; }
+        .resumo th:first-child, .resumo td:first-child { text-align:left; }
+        .resumo th { background:#eef3e8; font-size:11px; text-transform:uppercase; }
+        .resumo .tot td { font-weight:bold; background:#f7f7f0; }
+        #filtro-parcela { width:100%; padding:10px; border-radius:10px; border:1px solid #ccc; margin-bottom:12px; background:#fff; }
+        .toggle-modo { display:flex; gap:8px; margin-bottom:12px; }
+        .toggle-modo button { flex:1; padding:10px; border-radius:10px; border:2px solid #ddd; background:white; font-weight:600; font-size:13px; }
+        .toggle-modo button.activo { border-color:var(--primary); background:var(--primary); color:white; }
+        .grupo { margin:16px 0 6px; font-size:13px; color:var(--primary); text-transform:uppercase; letter-spacing:.5px; }
+        .prezo-card { background:white; border-radius:10px; padding:8px 12px; margin-bottom:6px; }
+        .prezo-row { display:flex; align-items:center; gap:8px; }
+        .prezo-row span { flex:1; font-weight:600; font-size:14px; }
+        .prezo-row span small { display:block; font-weight:400; font-style:italic; color:#888; font-size:11px; }
+        .prezo-row input { width:78px; padding:7px; text-align:right; border:1px solid #ddd; border-radius:8px; }
+        .prezo-row em { font-style:normal; font-size:12px; color:#777; }
+        details summary { font-size:12px; color:#777; padding:6px 0 2px; cursor:pointer; }
+        .param-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:6px 0; }
+        .param-grid label { font-size:11px; color:#666; }
+        .param-grid input { width:100%; padding:6px; border:1px solid #ddd; border-radius:8px; margin-top:2px; }
+        .ayuda { background:#fffbe6; border:1px solid #f0e2a0; border-radius:10px; padding:10px; font-size:12px; color:#665; margin-bottom:12px; line-height:1.45; }
+        #map { flex:1; width:100%; }
+        #toast { position:fixed; left:50%; bottom:calc(var(--sab) + 70px); transform:translateX(-50%) translateY(20px); background:rgba(20,20,20,.92); color:#fff; padding:10px 16px; border-radius:20px; font-size:14px; opacity:0; pointer-events:none; transition:.25s; z-index:9999; max-width:90%; text-align:center; }
+        #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
 
-    <section id="home" class="screen active">
-        <div class="header"><h1>Medidor árbores</h1></div>
-        <div class="content">
-            <div class="total-display">
-                <h2 id="display-euros">0.00 €</h2>
-                <p><span id="display-count">0</span> árbores | <span id="display-vol">0.000</span> t/m³</p>
-            </div>
+<!-- INICIO -->
+<section id="home" class="screen active">
+    <div class="header"><span class="hb vacio">.</span><h1>🌲 Medidor de árbores</h1><span class="hb vacio">.</span></div>
+    <div class="content">
+        <div class="marcador">
+            <h2 id="display-euros">0.00 €</h2>
+            <p><span id="display-count">0</span> árbores · <span id="display-vol">0.000</span> m³ · <span id="display-peso">0.00</span> t</p>
+            <p id="display-modo" style="font-size:11px;opacity:.7;margin-top:2px"></p>
+        </div>
+        <div class="chip-parcela" id="home-parcela"></div>
+        <div class="menu-grid">
+            <div class="menu-item accent" onclick="abrirFoto()"><span class="icon">📸</span><b>Medir con foto</b></div>
+            <div class="menu-item" onclick="novoRexistro({metodo:'manual'})"><span class="icon">📏</span><b>Medida manual</b></div>
+            <div class="menu-item" onclick="irA('datos-screen')"><span class="icon">📂</span><b>Inventario</b></div>
+            <div class="menu-item" onclick="irA('map-screen')"><span class="icon">📍</span><b>Mapa</b></div>
+            <div class="menu-item" onclick="irA('prezos-screen')"><span class="icon">💰</span><b>Prezos e especies</b></div>
+            <div class="menu-item" onclick="exportarExcel()"><span class="icon">📊</span><b>Excel</b></div>
+            <div class="menu-item" onclick="exportarKML()"><span class="icon">🗺️</span><b>KML</b></div>
+            <div class="menu-item" style="grid-column:span 2" onclick="irA('ajustes-screen')"><span class="icon">⚙️</span><b>Axustes e copia</b></div>
+        </div>
+    </div>
+</section>
 
-            <div class="menu-grid">
-                <div class="menu-item" onclick="abrirCalibracion()"><span class="icon">⚙️</span><b>Calibración</b></div>
-                <div class="menu-item" onclick="abrirCamara()"><span class="icon">📸</span><b>Medir</b></div>
-                <div class="menu-item" onclick="irA('map-screen')"><span class="icon">📍</span><b>Mapa</b></div>
-                <div class="menu-item" onclick="irA('prezos-screen')"><span class="icon">💰</span><b>Prezos</b></div>
-                <div class="menu-item" onclick="irA('datos-screen')"><span class="icon">📂</span><b>Arquivos</b></div>
-                <div class="menu-item" onclick="exportarExcel()"><span class="icon">📊</span><b>Excel</b></div>
+<!-- MEDIR CON FOTO -->
+<section id="foto-screen" class="screen dark">
+    <div class="topbar">
+        <button class="tb" onclick="irA('home')">‹ Inicio</button>
+        <b>Medir con foto</b>
+        <button class="tb on" data-zoom="1" onclick="setZoom(1)">1×</button>
+        <button class="tb" data-zoom="2" onclick="setZoom(2)">2×</button>
+        <button class="tb" data-zoom="4" onclick="setZoom(4)">4×</button>
+    </div>
+    <div id="foto-wrap">
+        <div id="foto-vacio">
+            <ol>
+                <li>Pon unha <b>tarxeta</b> (85,6 mm) horizontal, ben plana, sobre o tronco a <b>1,30 m</b> do chan.</li>
+                <li>Fai a foto de <b>fronte</b>, a 2–4 m, co tronco no centro e o móbil <b>vertical</b>, á altura da tarxeta.</li>
+                <li>Arrastra as <span style="color:#2f8cff">liñas azuis</span> aos bordes da tarxeta e as <span style="color:#2ee06a">verdes</span> aos bordes do tronco (usa o zoom).</li>
+            </ol>
+            <label class="btn btn-primary">📷 Facer foto<input type="file" accept="image/*" capture="environment" hidden onchange="cargarFoto(this)"></label>
+            <label class="btn btn-sec">🖼️ Elixir da galería<input type="file" accept="image/*" hidden onchange="cargarFoto(this)"></label>
+        </div>
+        <div id="foto-inner">
+            <canvas id="foto-canvas"></canvas>
+            <div id="hline"></div>
+            <div class="linea ref" id="L-r1" data-k="r1"><i>R</i></div>
+            <div class="linea ref" id="L-r2" data-k="r2"><i>R</i></div>
+            <div class="linea tr" id="L-t1" data-k="t1"><i>T</i></div>
+            <div class="linea tr" id="L-t2" data-k="t2"><i>T</i></div>
+        </div>
+    </div>
+    <div class="panel">
+        <div id="foto-dap" class="dap-live">— cm</div>
+        <div id="foto-det" class="det">Fai ou elixe unha foto</div>
+        <div id="foto-aviso" class="aviso"></div>
+        <div class="fila">
+            <button class="chip azul on" data-sel="r1" onclick="selLinea('r1')">Ref ◀</button>
+            <button class="chip azul" data-sel="r2" onclick="selLinea('r2')">Ref ▶</button>
+            <button class="chip verde" data-sel="t1" onclick="selLinea('t1')">Tronco ◀</button>
+            <button class="chip verde" data-sel="t2" onclick="selLinea('t2')">Tronco ▶</button>
+        </div>
+        <div class="fila">
+            <button class="chip" onclick="nudge(-5)">−5</button>
+            <button class="chip" onclick="nudge(-1)">−1</button>
+            <button class="chip" onclick="nudge(1)">+1</button>
+            <button class="chip" onclick="nudge(5)">+5</button>
+        </div>
+        <div class="fila">
+            <label class="snap"><input type="checkbox" checked onchange="toggleSnap(this.checked)"> Imán a bordes</label>
+            <button class="btn-mini" onclick="autoaxustar()">✨ Autoaxustar</button>
+            <button class="btn-mini" onclick="novaFoto()">🔄 Nova foto</button>
+        </div>
+        <button id="btn-usar-foto" class="btn btn-primary" onclick="usarMedidaFoto()" disabled>USAR ESTA MEDIDA ›</button>
+    </div>
+</section>
+
+<!-- REXISTRO -->
+<section id="reg-screen" class="screen">
+    <div class="header"><button class="hb" onclick="irA('home')">‹ Inicio</button><h1 id="reg-titulo">Novo rexistro</h1><span class="hb vacio">.</span></div>
+    <div class="content">
+        <div class="campo"><label for="r-esp">Especie</label><select id="r-esp" onchange="previa()"></select></div>
+        <div class="campo">
+            <div class="dos">
+                <div style="flex:1"><label for="r-dap">DAP (cm)</label><input id="r-dap" type="number" inputmode="decimal" step="0.1" oninput="syncDap()"></div>
+                <div style="flex:1"><label for="r-circ">Circunf. (cm)</label><input id="r-circ" type="number" inputmode="decimal" step="0.1" oninput="syncCirc()"></div>
             </div>
         </div>
-    </section>
-
-    <section id="cal-screen" class="screen">
-        <div class="visor-cont">
-            <video id="video-cal" autoplay playsinline></video>
-            <div id="cal-line"></div>
-            <div class="cam-ui">
-                <p style="margin:0 0 10px 0; font-size:12px;">Axusta a liña aos <b>30cm</b> da regra</p>
-                <input type="range" id="range-cal" min="50" max="400" value="200" style="width:100%;" oninput="axustarLiña(this.value)">
-                <button onclick="gardarCalibracion()" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; margin-top:10px;">GARDAR CALIBRACIÓN</button>
+        <div class="campo">
+            <div class="dos">
+                <div style="flex:1"><label for="r-alt">Altura (m, opcional)</label><input id="r-alt" type="number" inputmode="decimal" step="0.1" placeholder="estimada" oninput="previa()"></div>
+                <div style="flex:1"><label for="r-dist">Distancia (m)</label><input id="r-dist" type="number" inputmode="decimal" step="0.1"></div>
             </div>
+            <button class="btn-mini" style="margin-top:6px" onclick="abrirAltura()">📐 Medir altura co móbil</button>
         </div>
-    </section>
+        <div class="prev" id="r-prev"></div>
+        <div class="campo"><label for="r-parcela">Parcela</label><input id="r-parcela" list="lista-parcelas" autocomplete="off"><datalist id="lista-parcelas"></datalist></div>
+        <div class="campo"><label for="r-notas">Notas</label><input id="r-notas" autocomplete="off"></div>
+        <div id="r-gps"></div>
+        <button class="btn-mini" style="margin:-6px 0 14px" onclick="iniciarGPS()">📍 Actualizar posición</button>
+        <button id="btn-gardar-reg" class="btn btn-primary" onclick="gardarRexistro()">💾 GARDAR</button>
+        <button class="btn btn-sec" onclick="irA('home')">Cancelar</button>
+    </div>
+</section>
 
-    <section id="prezos-screen" class="screen">
-        <div class="header"><h1>Prezos Abegondo</h1></div>
-        <div class="content">
-            <div style="display:flex; gap:5px; margin-bottom:15px;">
-                <button onclick="setModo('pie')" id="btn-pie" style="flex:1; padding:10px;">EN PÉ</button>
-                <button onclick="setModo('carg')" id="btn-carg" style="flex:1; padding:10px;">CARGADEIRO</button>
-            </div>
-            <table id="tabla-prezos" style="width:100%;"></table>
-            <button onclick="irA('home')" style="width:100%; padding:15px; margin-top:20px; background:var(--primary); color:white; border:none; border-radius:10px;">VOLVER</button>
+<!-- ALTURA -->
+<section id="alt-screen" class="screen dark">
+    <video id="alt-video" autoplay playsinline muted></video>
+    <div class="cruz"></div>
+    <div id="alt-ang">0.0°</div>
+    <div class="alt-panel">
+        <p>Colócate á distancia indicada, móbil <b>vertical</b>. Apunta a cruz á <b>copa</b> e toca "Copa"; despois á <b>base</b> do tronco e toca "Base".</p>
+        <div class="fila"><button class="chip" onclick="marcarAngulo('top')">Copa: <span id="alt-top">—</span></button><button class="chip" onclick="marcarAngulo('base')">Base: <span id="alt-base">—</span></button></div>
+        <div class="dap-live" style="font-size:24px">H = <span id="alt-res">—</span></div>
+        <button id="btn-usar-alt" class="btn btn-primary" style="margin-top:6px" onclick="usarAltura()" disabled>USAR ALTURA</button>
+        <button class="btn btn-sec" onclick="irA('reg-screen')">Cancelar</button>
+    </div>
+</section>
+
+<!-- INVENTARIO -->
+<section id="datos-screen" class="screen">
+    <div class="header"><button class="hb" onclick="irA('home')">‹ Inicio</button><h1>📂 Inventario</h1><span class="hb vacio">.</span></div>
+    <div class="content">
+        <select id="filtro-parcela" onchange="setFiltro(this.value)"></select>
+        <div id="lista-datos"></div>
+    </div>
+</section>
+
+<!-- PREZOS -->
+<section id="prezos-screen" class="screen">
+    <div class="header"><button class="hb" onclick="irA('home')">‹ Inicio</button><h1>💰 Prezos e especies</h1><span class="hb vacio">.</span></div>
+    <div class="content">
+        <div class="toggle-modo">
+            <button id="btn-pie" class="activo" onclick="setModoPrezo('pie')">EN PÉ (€/t)</button>
+            <button id="btn-carg" onclick="setModoPrezo('carg')">CARGADEIRO (€/t)</button>
         </div>
-    </section>
+        <div class="ayuda"><b>Modelo:</b> H = 1,3 + a·(1 − e<sup>−b·DAP</sup>) · V = π/4·DAP²·H·f · peso = V·densidade.<br>Os valores iniciais son <b>orientativos</b>: axústaos coas túas tarifas e cos prezos reais. O modo seleccionado (en pé / cargadeiro) é o que se usa nos totais.</div>
+        <div id="lista-prezos"></div>
+    </div>
+</section>
 
-    <section id="datos-screen" class="screen">
-        <div class="header"><h1>Editar Árbores</h1></div>
-        <div class="content">
-            <table class="data-table">
-                <thead><tr><th>ID</th><th>Esp.</th><th>DAP</th><th>Acción</th></tr></thead>
-                <tbody id="lista-datos"></tbody>
-            </table>
-            <button onclick="irA('home')" style="width:100%; padding:15px; margin-top:20px; background:var(--primary); color:white; border:none; border-radius:10px;">VOLVER</button>
-        </div>
-    </section>
+<!-- AXUSTES -->
+<section id="ajustes-screen" class="screen">
+    <div class="header"><button class="hb" onclick="irA('home')">‹ Inicio</button><h1>⚙️ Axustes</h1><span class="hb vacio">.</span></div>
+    <div class="content">
+        <div class="campo"><label for="ax-ref">Obxecto de referencia</label>
+            <select id="ax-ref" onchange="axRef(this.value)">
+                <option value="tarxeta">Tarxeta bancaria (85,6 mm)</option>
+                <option value="a4largo">Folla A4, lado longo (297 mm)</option>
+                <option value="a4ancho">Folla A4, lado curto (210 mm)</option>
+                <option value="custom">Personalizado</option>
+            </select></div>
+        <div class="campo"><label for="ax-refmm">Ancho da referencia (mm)</label><input id="ax-refmm" type="number" inputmode="decimal" step="0.1" onchange="axNum('refMm',this.value)"></div>
+        <div class="campo"><label for="ax-f35">Focal equivalente 35 mm da cámara</label><input id="ax-f35" type="number" inputmode="decimal" step="1" onchange="axNum('f35',this.value)"><span class="mut">iPhone 16, cámara principal 1×: 26 · ultra gran angular 0,5×: 13 · 2×: 52. Só afecta á corrección de perspectiva (pequena).</span></div>
+        <div class="campo"><label for="ax-parcela">Parcela actual</label><input id="ax-parcela" onchange="axParcela(this.value)" autocomplete="off"></div>
+        <hr>
+        <button class="btn btn-primary" onclick="exportarJSON()">💾 Exportar copia (JSON)</button>
+        <label class="btn btn-sec" style="margin-top:8px">📥 Importar copia (JSON)<input type="file" accept="application/json,.json" hidden onchange="importarJSON(this)"></label>
+        <button class="btn btn-danger" style="margin-top:8px" onclick="borrarTodo()">🗑️ Borrar todo o inventario</button>
+        <p class="mut" id="ax-version" style="text-align:center;margin-top:16px"></p>
+    </div>
+</section>
 
-    <section id="map-screen" class="screen">
-        <div id="map"></div>
-        <button onclick="irA('home')" style="position:absolute; bottom:20px; left:20px; right:20px; z-index:1000; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold;">VOLVER</button>
-    </section>
+<!-- MAPA -->
+<section id="map-screen" class="screen">
+    <div class="header"><button class="hb" onclick="irA('home')">‹ Inicio</button><h1>📍 Mapa</h1><span class="hb vacio">.</span></div>
+    <div id="map"></div>
+</section>
 
-    <section id="cam-screen" class="screen">
-        <div class="visor-cont">
-            <video id="video-medir" autoplay playsinline></video>
-            <div class="cam-ui">
-                <select id="sel-especie" style="width:100%; padding:10px; margin-bottom:10px;"></select>
-                <div id="live-dap" style="font-size:24px; font-weight:bold; color:var(--primary);">--- cm</div>
-                <button onclick="capturarArbore()" style="width:100%; padding:15px; background:#d9534f; color:white; border:none; border-radius:10px; font-weight:bold;">CAPTURAR</button>
-                <button onclick="pecharCamara()" style="margin-top:10px; background:none; border:none; color:#666;">Cancelar</button>
-            </div>
-        </div>
-    </section>
+<div id="toast"></div>
 
-    <script>
-        const especiesBase = [
-            { id: 0, nome: 'Euc. Globulus', pe: 33.5, carg: 48 },
-            { id: 1, nome: 'Euc. Nitens', pe: 29, carg: 45 },
-            { id: 2, nome: 'Pino Sierra', pe: 20, carg: 36.5 },
-            { id: 3, nome: 'Pino Puntal', pe: 22.5, carg: 28 },
-            { id: 4, nome: 'Carballo', pe: 47.5, carg: 66.5 },
-            { id: 5, nome: 'Castaño', pe: 85, carg: 100 },
-            { id: 6, nome: 'Ribeira', pe: 19.5, carg: 21 }
-        ];
-
-        let inventario = JSON.parse(localStorage.getItem('medidor_data')) || [];
-        let prezos = JSON.parse(localStorage.getItem('medidor_prezos')) || especiesBase;
-        let pxPorCm = parseFloat(localStorage.getItem('calibracion_px')) || 10; 
-        let modoActual = 'pie';
-        let map, markerGroup, stream;
-
-        function irA(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if(id === 'map-screen') setTimeout(initMap, 200);
-            if(id === 'datos-screen') renderDatos();
-            if(id === 'prezos-screen') renderPrezos();
-        }
-
-        // --- CALIBRACIÓN ---
-        async function abrirCalibracion() {
-            irA('cal-screen');
-            document.getElementById('cal-line').style.display = 'block';
-            stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
-            document.getElementById('video-cal').srcObject = stream;
-        }
-
-        function axustarLiña(val) {
-            document.getElementById('cal-line').style.width = val + 'px';
-        }
-
-        function gardarCalibracion() {
-            const larguraPx = parseInt(document.getElementById('range-cal').value);
-            pxPorCm = larguraPx / 30; // 30cm é a regra
-            localStorage.setItem('calibracion_px', pxPorCm);
-            alert("Calibrado: " + pxPorCm.toFixed(2) + " px/cm");
-            pecharCamara();
-        }
-
-        // --- MEDIR ---
-        async function abrirCamara() {
-            irA('cam-screen');
-            const sel = document.getElementById('sel-especie');
-            sel.innerHTML = prezos.map((e,i) => `<option value="${i}">${e.nome}</option>`).join('');
-            stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
-            document.getElementById('video-medir').srcObject = stream;
-            
-            // Simulación de detección basada na calibración
-            window.camInt = setInterval(() => {
-                // Aquí simúlase que o sensor detecta un obxecto que ocupa 250px na pantalla
-                const simPx = 200 + (Math.random() * 50); 
-                window.curDap = (simPx / pxPorCm).toFixed(1);
-                document.getElementById('live-dap').innerText = window.curDap + " cm";
-            }, 1000);
-        }
-
-        function pecharCamara() {
-            if(stream) stream.getTracks().forEach(t => t.stop());
-            clearInterval(window.camInt);
-            document.getElementById('cal-line').style.display = 'none';
-            irA('home');
-        }
-
-        // --- RESTO DE FUNCIÓNS (IGUAIS) ---
-        function renderPrezos() {
-            const body = document.getElementById('tabla-prezos');
-            body.innerHTML = '';
-            prezos.forEach((e, i) => {
-                const val = (modoActual === 'pie') ? e.pe : e.carg;
-                body.innerHTML += `<tr><td><b>${e.nome}</b></td><td align="right"><input type="number" value="${val}" style="width:60px;" onchange="updateP(${i}, this.value)"> €</td></tr>`;
-            });
-        }
-
-        function updateP(i, v) {
-            if(modoActual === 'pie') prezos[i].pe = parseFloat(v); else prezos[i].carg = parseFloat(v);
-            localStorage.setItem('medidor_prezos', JSON.stringify(prezos));
-            actualizarTotais();
-        }
-
-        function setModo(m) { modoActual = m; renderPrezos(); }
-
-        function renderDatos() {
-            const body = document.getElementById('lista-datos');
-            body.innerHTML = '';
-            inventario.forEach((a, i) => {
-                body.innerHTML += `<tr><td>${i+1}</td><td>${prezos[a.ei].nome}</td><td>${a.d}cm</td><td><button onclick="borrarArbore(${i})">🗑️</button></td></tr>`;
-            });
-        }
-
-        function borrarArbore(i) {
-            if(confirm("Eliminar?")) {
-                inventario.splice(i, 1);
-                localStorage.setItem('medidor_data', JSON.stringify(inventario));
-                renderDatos(); actualizarTotais();
-            }
-        }
-
-        function actualizarTotais() {
-            let eur = 0, vol = 0;
-            inventario.forEach(a => {
-                const e = prezos[a.ei];
-                eur += a.v * ((modoActual === 'pie') ? e.pe : e.carg);
-                vol += a.v;
-            });
-            document.getElementById('display-euros').innerText = eur.toFixed(2) + " €";
-            document.getElementById('display-count').innerText = inventario.length;
-            document.getElementById('display-vol').innerText = vol.toFixed(3);
-        }
-
-        function capturarArbore() {
-            navigator.geolocation.getCurrentPosition(p => {
-                const ei = document.getElementById('sel-especie').value;
-                const d = parseFloat(window.curDap);
-                const v = parseFloat((0.00008 * Math.pow(d, 2.4)).toFixed(3));
-                inventario.push({ ei, d, v, la: p.coords.latitude, lo: p.coords.longitude });
-                localStorage.setItem('medidor_data', JSON.stringify(inventario));
-                actualizarTotais();
-                alert("Capturada!");
-            });
-        }
-
-        function initMap() {
-            if(!map) {
-                map = L.map('map').setView([43.2, -8.3], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                markerGroup = L.layerGroup().addTo(map);
-            }
-            markerGroup.clearLayers();
-            inventario.forEach(a => L.marker([a.la, a.lo]).addTo(markerGroup));
-            map.invalidateSize();
-        }
-
-        function exportarExcel() {
-            const d = inventario.map(a => ({ Especie: prezos[a.ei].nome, DAP: a.d, Vol: a.v }));
-            const ws = XLSX.utils.json_to_sheet(d);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-            XLSX.writeFile(wb, "Inventario.xlsx");
-        }
-
-        actualizarTotais();
-    </script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/leaflet.js"></script>
+<script src="especies.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
